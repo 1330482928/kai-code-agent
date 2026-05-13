@@ -21,8 +21,12 @@ export function projectMessageText(message: TranscriptMessage): string {
   if (message.role === "tool") {
     const result = message.parts.find((part) => part.type === "tool_result");
     const plan = message.parts.find((part) => part.type === "summary" && part.metadata.kind === "plan");
+    const compaction = message.parts.find((part) => part.type === "summary" && part.metadata.kind === "compaction");
     if (plan) {
       return projectPlanPart(plan);
+    }
+    if (compaction) {
+      return projectCompactionPart(compaction);
     }
     if (!result) {
       return message.summary ?? "";
@@ -65,6 +69,13 @@ function projectPlanPart(part: TranscriptPart): string {
     return `plan entered${planPath}`;
   }
   return `plan updated${planPath}`;
+}
+
+function projectCompactionPart(part: TranscriptPart): string {
+  const count = Array.isArray(part.metadata.sourceMessageIds)
+    ? part.metadata.sourceMessageIds.filter((value) => typeof value === "string").length
+    : 0;
+  return count > 0 ? `context compacted: ${count} messages summarized` : "context compacted";
 }
 
 function projectToolCall(part: TranscriptPart): string {

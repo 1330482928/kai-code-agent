@@ -1,0 +1,6 @@
+{
+  "events": [
+    { "type": "text_delta", "text": "context basic ok" },
+    { "type": "done" }
+  ]
+}

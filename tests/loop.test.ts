@@ -21,10 +21,9 @@ describe("agent loop", () => {
       },
     });
 
-    expect(provider.lastInput).toEqual({
-      model: "test-model",
-      messages: [{ role: "user", content: "hello" }],
-    });
+    expect(provider.lastInput?.model).toBe("test-model");
+    expect(provider.lastInput?.messages.some((message) => message.role === "system")).toBe(true);
+    expect(provider.lastInput?.messages.some((message) => message.role === "user" && message.content === "hello")).toBe(true);
     expect(result.assistantMessage).toEqual({ role: "assistant", content: "Hello" });
     expect(result.messages).toEqual([
       { role: "user", content: "hello" },

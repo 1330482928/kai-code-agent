@@ -1,0 +1,23 @@
+{
+  "responses": [
+    {
+      "events": [
+        {
+          "type": "tool_call",
+          "toolCall": {
+            "id": "read_ctx",
+            "name": "read_file",
+            "input": { "path": "package.json", "limit": 80 }
+          }
+        },
+        { "type": "done" }
+      ]
+    },
+    {
+      "events": [
+        { "type": "text_delta", "text": "context tool continuation ok" },
+        { "type": "done" }
+      ]
+    }
+  ]
+}

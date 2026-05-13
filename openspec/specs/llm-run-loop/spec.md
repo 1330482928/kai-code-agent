@@ -281,3 +281,74 @@ The system SHALL add approved plan context to build-profile provider input after
 - **WHEN** a session with an approved plan is resumed
 - **THEN** rebuilt provider messages include enough explicit plan context for the build profile to continue from the approved plan
 
+### Requirement: Run loop builds provider input through the context kernel
+The system SHALL build every provider request in the ReAct loop through the Context Kernel and ModelInputBuilder instead of manually composing provider messages inside the run loop.
+
+#### Scenario: Text-only provider call is built
+- **WHEN** `kai run` starts a text-only task
+- **THEN** the run loop produces ContextItems for base, profile, runtime, history if any, and current user input before calling the provider
+
+#### Scenario: Tool continuation provider call is built
+- **WHEN** a tool result is appended and the run loop needs another provider call
+- **THEN** the continuation request is rebuilt through ModelInputBuilder with prior assistant tool call and tool result messages preserved
+
+#### Scenario: Middleware observes model input
+- **WHEN** model middleware runs before a provider call
+- **THEN** it receives or can inspect the ModelInputBuilder output without needing to manually reconstruct provider messages
+
+#### Scenario: Existing visible output is preserved
+- **WHEN** the builder-backed run completes
+- **THEN** stdout, current-turn UI events, session recording, and assistant visible text match the pre-builder behavior for equivalent provider events
+
+### Requirement: Run loop exposes context debug result for tests
+The system SHALL make the context build result inspectable through dependency injection or test hooks without printing debug details in normal CLI output.
+
+#### Scenario: Test captures context build result
+- **WHEN** a unit test runs the ReAct loop with a fixture provider
+- **THEN** it can assert the built ContextItems, included sources, provider messages, and tool schemas
+
+#### Scenario: Normal run hides debug metadata
+- **WHEN** a user runs `kai run` normally
+- **THEN** context debug metadata is not printed unless a future debug command explicitly requests it
+
+### Requirement: Run loop compacts context before provider overflow
+The system SHALL evaluate ContextItems through the context budget planner before each provider request and SHALL compact session-backed history before the provider call when the planned input exceeds the configured compaction threshold.
+
+#### Scenario: Provider request is within budget
+- **WHEN** a run-loop provider request is planned within budget
+- **THEN** the run loop sends provider input built from the planned ContextItems without invoking compaction
+
+#### Scenario: Provider request exceeds compaction threshold
+- **WHEN** a session-backed provider request exceeds the compaction threshold
+- **THEN** the run loop generates or reuses a summary, persists it through the session recorder, rebuilds ContextItems with summary plus protected tail, and only then calls the provider
+
+#### Scenario: Compaction fails
+- **WHEN** summary generation or summary persistence fails before a provider call
+- **THEN** the run loop returns a concise compaction error and leaves the original transcript history intact
+
+#### Scenario: Non-session run exceeds budget
+- **WHEN** a non-session-backed run exceeds the configured input budget and cannot persist a summary
+- **THEN** the run loop uses deterministic budget trimming where valid or returns a concise context-budget error instead of sending an invalid provider request
+
+### Requirement: Run loop preserves ModelInputBuilder as the provider boundary
+The system SHALL continue to send provider requests only from `ModelInputBuilder` output after budget planning and compaction have completed.
+
+#### Scenario: Compaction changes context
+- **WHEN** compaction replaces older history with a summary ContextItem
+- **THEN** the run loop rebuilds provider input through `ModelInputBuilder` and does not manually splice provider messages
+
+#### Scenario: Tool continuation follows compaction
+- **WHEN** the provider requests a tool after a compacted request
+- **THEN** subsequent provider continuations use the same context manager and builder path while preserving formatted tool result messages
+
+### Requirement: Compaction remains hidden from ordinary UI output
+The system SHALL treat compaction as internal context management and SHALL NOT print summary generation prompts, hidden thinking, or compaction internals as ordinary assistant-visible text.
+
+#### Scenario: Compaction occurs during command-mode run
+- **WHEN** a command-mode run compacts history before calling the provider
+- **THEN** stdout contains only normal renderer output and assistant visible text from provider `text_delta` events
+
+#### Scenario: Thinking appears during summary generation
+- **WHEN** the summary provider emits hidden thinking or reasoning content
+- **THEN** the run loop handles it as hidden thinking and does not add it to assistant visible text, prompt debug visible content, or plain replay output
+

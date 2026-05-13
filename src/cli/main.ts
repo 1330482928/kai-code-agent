@@ -9,7 +9,15 @@ import {
 } from "../agent/profiles.js";
 import { runReactLoop } from "../agent/react-loop.js";
 import { createPlanGuardMiddleware } from "../coding/plan/guard-middleware.js";
-import { findActivePlanPath, PlanStore, approvedPlanContextFromSession } from "../coding/plan/store.js";
+import { findActivePlanPath, PlanStore } from "../coding/plan/store.js";
+import {
+  buildContextItemsForRun,
+  buildPromptDebugSnapshot,
+  ContextManager,
+  redactDebugText,
+  renderPromptDebugText,
+  type ContextBudget,
+} from "../coding/context/index.js";
 import { createReadlinePromptIO, ensureModelConfig, type PromptIO } from "../config/first-run.js";
 import {
   formatModelConfigForDisplay,
@@ -22,10 +30,9 @@ import { FixtureProvider } from "../provider/fixture.js";
 import type { ProviderAdapter } from "../provider/types.js";
 import { exportSessionJsonl, replaySessionPlain } from "../session/export.js";
 import { getDefaultSessionDbPath } from "../session/path.js";
-import { rebuildProviderMessages } from "../session/rebuild.js";
 import { openSqliteSessionStore, type SqliteSessionStore } from "../session/sqlite-store.js";
 import type { LoadedSession, PromptSubmission, SessionRecord } from "../session/types.js";
-import { historyForRun, runChatLoop, writeChatSnapshot } from "./chat.js";
+import { runChatLoop, writeChatSnapshot } from "./chat.js";
 import { createInterruptBinding } from "./interrupt.js";
 import { renderError } from "../ui/render.js";
 import { PlainRenderer } from "../ui/plain/renderer.js";
@@ -72,6 +79,17 @@ interface SessionRunContext {
   loaded?: LoadedSession;
 }
 
+interface PromptDebugCommandOptions {
+  debug: boolean;
+  task: string;
+  sessionId?: string;
+  json?: boolean;
+  showItems?: boolean;
+  maxInputTokens?: number;
+  reservedOutputTokens?: number;
+  compactThreshold?: number;
+}
+
 export async function main(
   argv = process.argv.slice(2),
   options: CliOptions = {},
@@ -113,6 +131,11 @@ export async function runCli(
 
   if (command === "plan") {
     await handlePlan(parsePlanCommand(argv.slice(1)), options);
+    return;
+  }
+
+  if (command === "prompt") {
+    await handlePromptDebug(parsePromptDebugCommand(argv.slice(1)), options);
     return;
   }
 
@@ -170,7 +193,6 @@ async function handleRun(command: RunCommandOptions, options: CliOptions): Promi
     }
     await runTask(command.task, model, provider, options, {
       sessionContext,
-      initialMessages: sessionContext?.loaded ? rebuildProviderMessages(sessionContext.loaded) : undefined,
       autoApprovePlan: command.providerName === "fixture",
     });
   } finally {
@@ -193,7 +215,6 @@ async function handleResume(command: ResumeCommandOptions, options: CliOptions):
     }
     await runTask(command.task, model, provider, options, {
       sessionContext: { store, session: loaded.session, loaded },
-      initialMessages: rebuildProviderMessages(loaded),
     });
   } finally {
     store.close();
@@ -255,6 +276,57 @@ async function handlePlan(command: PlanCommandOptions, options: CliOptions): Pro
   }
 }
 
+async function handlePromptDebug(command: PromptDebugCommandOptions, options: CliOptions): Promise<void> {
+  if (!command.debug || !command.task) {
+    throw new Error("Usage: kai prompt --debug [--session <id>] [--json] [--show-items] [--max-input-tokens <n>] \"<task>\"");
+  }
+
+  const stdout = options.stdout ?? process.stdout;
+  const budget: Partial<ContextBudget> = {
+    ...(command.maxInputTokens !== undefined ? { maxInputTokens: command.maxInputTokens } : {}),
+    ...(command.reservedOutputTokens !== undefined ? { reservedOutputTokens: command.reservedOutputTokens } : {}),
+    ...(command.compactThreshold !== undefined ? { compactThreshold: command.compactThreshold } : {}),
+  };
+  const store = command.sessionId ? await openCliSessionStore(options) : undefined;
+  try {
+    const loaded = command.sessionId ? requireLoadedSession(store!, command.sessionId) : undefined;
+    const loadedConfig = await loadModelConfig({ configPath: resolveConfigPath(options) });
+    const model = loadedConfig.status === "ok" ? loadedConfig.profile.model : "debug-model";
+    const profileName = resolveAgentProfileName({ sessionMetadata: loaded?.session.metadata });
+    const registry = createProfileToolRegistry({ profileName });
+    const messages = [{ role: "user" as const, content: command.task }];
+    const items = await buildContextItemsForRun({
+      cwd: options.cwd ?? loaded?.session.cwd ?? process.cwd(),
+      messages,
+      loadedSession: loaded,
+      profileName,
+      currentUserOrdinal: 0,
+    });
+    const manager = new ContextManager({
+      budget,
+      readOnly: true,
+    });
+    const build = await manager.build({
+      model,
+      items,
+      tools: registry.providerSchemas(),
+      loadedSession: loaded,
+      profileName,
+    });
+    const snapshot = buildPromptDebugSnapshot({
+      build,
+      showItems: command.showItems,
+    });
+    if (command.json) {
+      stdout.write(`${redactDebugText(JSON.stringify(snapshot, null, 2))}\n`);
+      return;
+    }
+    stdout.write(renderPromptDebugText(snapshot));
+  } finally {
+    store?.close();
+  }
+}
+
 async function handleChat(argv: string[], options: CliOptions): Promise<void> {
   const sessionId = parseChatSession(argv);
   const store = await openCliSessionStore(options);
@@ -281,7 +353,6 @@ async function handleChat(argv: string[], options: CliOptions): Promise<void> {
       runTurn: async ({ task, model, provider, session, loaded, submission }) => {
         await runTask(task, model, provider, options, {
           sessionContext: { store, session, loaded },
-          initialMessages: historyForRun(loaded),
           promptSubmission: submission,
         });
       },
@@ -307,7 +378,6 @@ async function handleBareCli(options: CliOptions): Promise<void> {
         runTurn: async ({ task, model, provider, session, loaded, submission }) => {
           await runTask(task, model, provider, options, {
             sessionContext: { store, session, loaded },
-            initialMessages: historyForRun(loaded),
             promptSubmission: submission,
           });
         },
@@ -411,9 +481,9 @@ async function runTask(
       cwd: options.cwd ?? process.cwd(),
       sessionId: runOptions.sessionContext?.session.id,
       initialMessages: runOptions.initialMessages,
+      loadedSession: runOptions.sessionContext?.loaded,
       profileName: activeProfile,
       getToolRegistryForProfile: registryForProfile,
-      approvedPlanContext: approvedPlanContextFromSession(runOptions.sessionContext?.loaded),
       onProfileChange(profileName) {
         activeProfile = profileName;
       },
@@ -465,6 +535,67 @@ function parseRunCommand(argv: string[]): RunCommandOptions {
     providerName,
     scriptPath,
     session,
+  };
+}
+
+function parsePromptDebugCommand(argv: string[]): PromptDebugCommandOptions {
+  let debug = false;
+  let sessionId: string | undefined;
+  let json = false;
+  let showItems = false;
+  let maxInputTokens: number | undefined;
+  let reservedOutputTokens: number | undefined;
+  let compactThreshold: number | undefined;
+  const taskParts: string[] = [];
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (arg === "--debug") {
+      debug = true;
+      continue;
+    }
+    if (arg === "--session") {
+      sessionId = readFlagValue(argv, index, "--session");
+      index += 1;
+      continue;
+    }
+    if (arg === "--json") {
+      json = true;
+      continue;
+    }
+    if (arg === "--show-items") {
+      showItems = true;
+      continue;
+    }
+    if (arg === "--max-input-tokens") {
+      maxInputTokens = parseNumberFlag(readFlagValue(argv, index, "--max-input-tokens"), "--max-input-tokens");
+      index += 1;
+      continue;
+    }
+    if (arg === "--reserved-output-tokens") {
+      reservedOutputTokens = parseNumberFlag(readFlagValue(argv, index, "--reserved-output-tokens"), "--reserved-output-tokens");
+      index += 1;
+      continue;
+    }
+    if (arg === "--compact-threshold") {
+      compactThreshold = parseNumberFlag(readFlagValue(argv, index, "--compact-threshold"), "--compact-threshold");
+      index += 1;
+      continue;
+    }
+    if (arg) {
+      taskParts.push(arg);
+    }
+  }
+
+  return {
+    debug,
+    task: taskParts.join(" ").trim(),
+    ...(sessionId ? { sessionId } : {}),
+    ...(json ? { json } : {}),
+    ...(showItems ? { showItems } : {}),
+    ...(maxInputTokens !== undefined ? { maxInputTokens } : {}),
+    ...(reservedOutputTokens !== undefined ? { reservedOutputTokens } : {}),
+    ...(compactThreshold !== undefined ? { compactThreshold } : {}),
   };
 }
 
@@ -526,6 +657,14 @@ function readFlagValue(argv: string[], index: number, flag: string): string {
     throw new Error(`${flag} requires a value`);
   }
   return value;
+}
+
+function parseNumberFlag(value: string, flag: string): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error(`${flag} requires a non-negative number`);
+  }
+  return parsed;
 }
 
 function resolveConfigPath(options: CliOptions): string | undefined {

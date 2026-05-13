@@ -1,0 +1,10 @@
+{
+  "responses": [
+    {
+      "events": [
+        { "type": "text_delta", "text": "approved plan context ok" },
+        { "type": "done" }
+      ]
+    }
+  ]
+}

@@ -129,10 +129,27 @@ export interface RecordToolResultInput {
   profile?: string;
 }
 
+export interface RecordCompactionSummaryInput {
+  summary: string;
+  sourceMessageIds: string[];
+  preservedMessageIds: string[];
+  compactedItemIds?: string[];
+  preservedItemIds?: string[];
+  profile?: string;
+  estimatedTokens?: number;
+}
+
+export interface RecordCompactionSummaryResult {
+  messageId: string;
+  partId: string;
+  reused: boolean;
+}
+
 export interface SessionRecorder {
   recordUserMessage(input: RecordUserMessageInput): void | Promise<void>;
   recordAssistantMessage(input: RecordAssistantMessageInput): void | Promise<void>;
   recordToolResult(input: RecordToolResultInput): void | Promise<void>;
+  recordCompactionSummary?(input: RecordCompactionSummaryInput): RecordCompactionSummaryResult | Promise<RecordCompactionSummaryResult>;
   completeTurn(result: { status: "success" | "aborted" | "error"; messages?: Message[]; error?: unknown }): void | Promise<void>;
 }
 

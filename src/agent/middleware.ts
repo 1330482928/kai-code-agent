@@ -1,6 +1,7 @@
 import type { Message, RunResult } from "../foundation/message.js";
 import type { ProviderInput } from "../provider/types.js";
 import type { ExecutableToolUse, ToolResult } from "../foundation/tool.js";
+import type { ContextItem, ModelInputBuildResult } from "../coding/context/items.js";
 
 export interface MiddlewareContextBase {
   sessionId: string;
@@ -22,6 +23,8 @@ export interface AgentRunAfterContext extends AgentRunContext {
 export interface ModelContext extends MiddlewareContextBase {
   input: ProviderInput;
   messages: Message[];
+  contextItems?: ContextItem[];
+  contextBuild?: ModelInputBuildResult;
 }
 
 export interface ModelAfterContext extends ModelContext {

@@ -48,6 +48,7 @@ describe("stage-03", () => {
       },
       beforeModel(context) {
         calls.push(`beforeModel:${context.input.messages.length}`);
+        expect(context.contextBuild?.providerInput).toBe(context.input);
       },
       afterModel() {
         calls.push("afterModel");
@@ -82,11 +83,11 @@ describe("stage-03", () => {
     expect(result.assistantMessage.content).toBe("done");
     expect(calls).toEqual([
       "beforeAgentRun",
-      "beforeModel:1",
+      "beforeModel:4",
       "afterModel",
       "beforeToolUse:read_file",
       "afterToolUse:true",
-      "beforeModel:3",
+      "beforeModel:6",
       "afterModel",
       "afterAgentRun:success",
     ]);

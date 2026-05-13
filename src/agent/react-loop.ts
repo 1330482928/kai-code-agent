@@ -10,12 +10,21 @@ import type { UiEvent } from "../foundation/ui-event.js";
 import type { ProviderAdapter, ProviderEvent, ProviderInput } from "../provider/types.js";
 import type { ToolRegistry } from "../coding/tools/registry.js";
 import { runTool } from "../coding/tools/runner.js";
+import {
+  buildContextItemsForRun,
+  ContextManager,
+  type ContextAssemblyOptions,
+  type ContextBudget,
+  ModelInputBuilder,
+  type ContextItem,
+  type ModelInputBuildResult,
+} from "../coding/context/index.js";
 import { MiddlewarePipeline, isAbortError, throwIfAborted, type AgentMiddleware } from "./middleware.js";
 import { summarizeToolUse } from "../foundation/tool-summary.js";
 import { ToolAccumulator, type ToolAssemblyResult } from "./tool-accumulator.js";
 import { ToolState } from "./tool-state.js";
 import { formatToolResultForModel } from "./tool-result-formatter.js";
-import type { PromptSubmission, SessionRecorder } from "../session/types.js";
+import type { LoadedSession, PromptSubmission, SessionRecorder } from "../session/types.js";
 import type { AgentProfileName } from "./profiles.js";
 
 const MAX_REACT_ITERATIONS = 20;
@@ -30,15 +39,26 @@ export interface RunReactLoopOptions {
   initialMessages?: Message[];
   promptSubmission?: PromptSubmission;
   sessionRecorder?: SessionRecorder;
+  loadedSession?: LoadedSession;
   profileName?: AgentProfileName;
   getToolRegistryForProfile?: (profileName: AgentProfileName) => ToolRegistry | undefined;
   approvedPlanContext?: string;
+  contextItems?: ContextItem[];
+  contextOptions?: ReactLoopContextOptions;
+  modelInputBuilder?: ModelInputBuilder;
+  onContextBuild?: (result: ModelInputBuildResult) => void | Promise<void>;
   onProfileChange?: (profileName: AgentProfileName) => void | Promise<void>;
   signal?: AbortSignal;
   middleware?: AgentMiddleware[];
   onEvent?: (event: ProviderEvent) => void | Promise<void>;
   onUiEvent?: (event: UiEvent) => void | Promise<void>;
   onToolResult?: (toolUse: ExecutableToolUse, rawResult: ToolResult, modelContent: string) => void | Promise<void>;
+}
+
+export interface ReactLoopContextOptions extends ContextAssemblyOptions {
+  budget?: Partial<ContextBudget>;
+  allowCompaction?: boolean;
+  tailTokenBudget?: number;
 }
 
 export async function runReactLoop(options: RunReactLoopOptions): Promise<RunResult> {
@@ -52,12 +72,8 @@ export async function runReactLoop(options: RunReactLoopOptions): Promise<RunRes
     role: "user",
     content: options.task,
   };
-  const planContextMessage: Message[] = options.approvedPlanContext && options.profileName !== "plan"
-    ? [{ role: "system", content: options.approvedPlanContext }]
-    : [];
   const messages: Message[] = [
     ...(options.initialMessages ?? []),
-    ...planContextMessage,
     userMessage,
   ];
   let usage: RunResult["usage"];
@@ -96,14 +112,24 @@ export async function runReactLoop(options: RunReactLoopOptions): Promise<RunRes
       const accumulator = new ToolAccumulator();
       let sawDone = false;
 
+  const contextBuild = await buildProviderInputForIteration(options, {
+    cwd,
+    messages,
+    model: options.model,
+    profileName: currentProfile,
+    tools: registryForProfile(options, currentProfile)?.providerSchemas(),
+    currentUserOrdinal: options.initialMessages?.length ?? 0,
+    provider: options.provider,
+    signal,
+  });
+      await options.onContextBuild?.(contextBuild);
+
       const providerInput: ProviderInput = await pipeline.beforeModel({
         ...baseContext,
         messages,
-        input: {
-          messages: [...messages],
-          model: options.model,
-          tools: registryForProfile(options, currentProfile)?.providerSchemas(),
-        },
+        input: contextBuild.providerInput,
+        contextItems: contextBuild.items,
+        contextBuild,
       });
 
       for await (const event of options.provider.stream(providerInput, signal)) {
@@ -330,6 +356,49 @@ function emptyRegistry(): Pick<ToolRegistry, "get"> {
 
 function registryForProfile(options: RunReactLoopOptions, profileName: AgentProfileName): ToolRegistry | undefined {
   return options.getToolRegistryForProfile?.(profileName) ?? options.toolRegistry;
+}
+
+async function buildProviderInputForIteration(
+  options: RunReactLoopOptions,
+  input: {
+    cwd: string;
+    messages: Message[];
+    model: string;
+    profileName: AgentProfileName;
+    tools?: ProviderInput["tools"];
+    currentUserOrdinal: number;
+    provider: ProviderAdapter;
+    signal: AbortSignal;
+  },
+): Promise<ModelInputBuildResult> {
+  const contextOptions = options.contextOptions ?? {};
+  const items: ContextItem[] = await buildContextItemsForRun({
+    cwd: input.cwd,
+    messages: input.messages,
+    loadedSession: options.loadedSession,
+    profileName: input.profileName,
+    currentUserOrdinal: input.currentUserOrdinal,
+    contextOptions,
+    approvedPlanContext: options.approvedPlanContext,
+    extraItems: options.contextItems,
+  });
+
+  const manager = new ContextManager({
+    builder: options.modelInputBuilder ?? new ModelInputBuilder({ budget: contextOptions.budget }),
+    budget: contextOptions.budget,
+    allowCompaction: contextOptions.allowCompaction,
+    tailTokenBudget: contextOptions.tailTokenBudget,
+  });
+  return manager.build({
+    model: input.model,
+    items,
+    tools: input.tools,
+    provider: input.provider,
+    signal: input.signal,
+    loadedSession: options.loadedSession,
+    sessionRecorder: options.sessionRecorder,
+    profileName: input.profileName,
+  });
 }
 
 function nextProfileFromToolResult(result: ToolResult): AgentProfileName | undefined {

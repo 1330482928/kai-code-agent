@@ -11,6 +11,8 @@ import type {
   AppendPartInput,
   BashRunMetadata,
   LoadedSession,
+  RecordCompactionSummaryInput,
+  RecordCompactionSummaryResult,
   RecordAssistantMessageInput,
   RecordToolResultInput,
   RecordUserMessageInput,
@@ -347,6 +349,45 @@ export class SessionTranscriptRecorder implements SessionRecorder {
     });
   }
 
+  recordCompactionSummary(input: RecordCompactionSummaryInput): RecordCompactionSummaryResult {
+    const existing = findExistingCompactionSummary(this.store.loadSession(this.sessionId), input);
+    if (existing) {
+      return {
+        messageId: existing.messageId,
+        partId: existing.partId,
+        reused: true,
+      };
+    }
+
+    const metadata: JsonObject = {
+      kind: "compaction",
+      sourceMessageIds: input.sourceMessageIds,
+      preservedMessageIds: input.preservedMessageIds,
+      ...(input.compactedItemIds ? { compactedItemIds: input.compactedItemIds } : {}),
+      ...(input.preservedItemIds ? { preservedItemIds: input.preservedItemIds } : {}),
+      ...(input.profile ? { profile: input.profile } : {}),
+      ...(input.estimatedTokens !== undefined ? { estimatedTokens: input.estimatedTokens } : {}),
+    };
+    const message = this.store.appendMessage({
+      sessionId: this.sessionId,
+      role: "tool",
+      summary: "context compacted",
+      metadata,
+    });
+    const part = this.store.appendPart({
+      messageId: message.id,
+      type: "summary",
+      text: input.summary,
+      modelContent: input.summary,
+      metadata,
+    });
+    return {
+      messageId: message.id,
+      partId: part.id,
+      reused: false,
+    };
+  }
+
   completeTurn(): void {
     return undefined;
   }
@@ -495,6 +536,42 @@ function summarizeToolResult(result: ToolResult): string {
     return result.error.message;
   }
   return summarizeText(result.output, 160);
+}
+
+function findExistingCompactionSummary(
+  loaded: LoadedSession | undefined,
+  input: RecordCompactionSummaryInput,
+): { messageId: string; partId: string } | undefined {
+  if (!loaded) {
+    return undefined;
+  }
+  for (const message of loaded.messages) {
+    for (const part of message.parts) {
+      if (part.type !== "summary" || part.metadata.kind !== "compaction") {
+        continue;
+      }
+      const sourceMessageIds = stringArrayMetadata(part.metadata.sourceMessageIds);
+      const preservedMessageIds = stringArrayMetadata(part.metadata.preservedMessageIds);
+      if (
+        sameStringArray(sourceMessageIds, input.sourceMessageIds) &&
+        sameStringArray(preservedMessageIds, input.preservedMessageIds)
+      ) {
+        return { messageId: message.id, partId: part.id };
+      }
+    }
+  }
+  return undefined;
+}
+
+function stringArrayMetadata(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+function sameStringArray(left: string[], right: string[]): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+  return left.every((value, index) => value === right[index]);
 }
 
 function isJsonObject(value: unknown): value is JsonObject {
