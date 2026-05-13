@@ -2,21 +2,33 @@
 
 ```mermaid
 flowchart TB
-  P["Provider stream"] --> SP["Stream Processor"]
-  SP --> Text["text delta"]
-  SP --> ToolStart["tool start"]
-  SP --> ToolDelta["tool input delta"]
-  SP --> ToolDone["tool result"]
-  SP --> BashProgress["bash progress"]
-  Text --> UI["Terminal Renderer"]
-  ToolStart --> UI
-  ToolDelta --> UI
-  ToolDone --> UI
-  BashProgress --> UI
-  ToolDone --> L["Agent Loop continuation"]
+  Loop["Agent Loop"] --> MW["Middleware Pipeline"]
+  MW --> ModelHooks["beforeModel / afterModel"]
+  MW --> ToolHooks["beforeToolUse / afterToolUse"]
+  ModelHooks --> Provider["Provider Stream"]
+  Provider --> Split["Text / Thinking Splitter"]
+  Provider --> Acc["Tool Argument Accumulator"]
+  Acc --> Gate{"JSON parse ok?"}
+  Gate -->|yes| ToolHooks
+  Gate -->|no final| ParseErr["parse_error result"]
+  ToolHooks --> Manager["HumanInteractionManager"]
+  Manager --> Approval["ApprovalPrompt"]
+  Manager --> Question["AskUserQuestionPrompt"]
+  ToolHooks --> Summary["summarizeToolUse"]
+  ToolHooks --> Tool["Tool Runner"]
+  Tool --> Emit["ToolContext.emit"]
+  Emit --> BashProgress["bash_progress"]
+  Split --> Events["UiEvent Stream"]
+  Summary --> Events
+  ParseErr --> Events
+  Tool --> Events
+  BashProgress --> Events
+  Events --> Batcher["Renderer Batcher"]
+  Batcher --> Plain["Plain Renderer"]
+  Batcher --> Ink["Ink Turn Renderer"]
 
   classDef existing fill:#eef2ff,stroke:#4f46e5,color:#111;
   classDef new fill:#e8f5e9,stroke:#2e7d32,color:#111;
-  class P,L existing;
-  class SP,Text,ToolStart,ToolDelta,ToolDone,BashProgress,UI new;
+  class Loop,Tool,Provider existing;
+  class MW,ModelHooks,Split,Acc,Gate,ParseErr,ToolHooks,Manager,Approval,Question,Summary,Emit,BashProgress,Events,Batcher,Plain,Ink new;
 ```

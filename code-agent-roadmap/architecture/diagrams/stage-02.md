@@ -2,11 +2,11 @@
 
 ```mermaid
 flowchart LR
-  L["Agent Loop"] --> T["Tool Registry"]
+  L["Generic ReAct Loop"] --> T["Tool Registry"]
   T --> Read["read_file"]
   T --> Write["write_file"]
   T --> Edit["edit_file"]
-  T --> Bash["bash"]
+  T --> Bash["bash via Bun.spawn"]
   Read --> TR["ToolResult"]
   Write --> TR
   Edit --> TR

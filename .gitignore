@@ -11,11 +11,8 @@ coverage/
 *.log
 
 .kai/sessions/
+.kai/plans/
 .kai/tmp/
 .kai/tool-results/
+.kai/settings.local.json
 tmp/
-
-/openspec
-code-agent-roadmap
-examples
-fixtures

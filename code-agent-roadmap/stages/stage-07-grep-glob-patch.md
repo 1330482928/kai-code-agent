@@ -118,9 +118,9 @@ export type PatchChange =
 Demo commands:
 
 ```bash
-pnpm kai run --provider fixture --script fixtures/grep.json "find marker"
-pnpm kai run --provider fixture --script fixtures/apply-patch.json "patch file"
-pnpm test -- stage-07
+bun run kai run --provider fixture --script fixtures/grep.json "find marker"
+bun run kai run --provider fixture --script fixtures/apply-patch.json "patch file"
+bun test -- stage-07
 ```
 
 ## 8. 验收标准
@@ -132,7 +132,7 @@ pnpm test -- stage-07
 | patch parse | 支持 add/delete/update |
 | patch apply | 修改 cwd 内文件并返回摘要 |
 | patch failure | 匹配失败不写部分文件 |
-| 代码预算 | 累计核心代码约 3400 行 |
+| 代码预算 | 累计核心代码约 5180 行 |
 
 ## 9. 已知限制 & 下一阶段衔接
 

@@ -22,7 +22,7 @@
 | 维度 | OpenCode | Claude Code | Codex | 我们的选择 | 理由 |
 | --- | --- | --- | --- | --- | --- |
 | transport | local/remote 都支持 | 子 Agent 可有 MCP | session manager | Stage 09 只做 stdio；参考 §4 源码引用 | 个人项目优先小代码量、可调试、阶段闭环。 |
-| config | 本地与远程 schema | agent 定义可含 mcpServers | config layers | `kai.config.json`；参考 §4 源码引用 | 个人项目优先小代码量、可调试、阶段闭环。 |
+| config | 本地与远程 schema | agent 定义可含 mcpServers | config layers | 用户 YAML + project override；参考 §4 源码引用 | 个人项目优先小代码量、可调试、阶段闭环。 |
 | lifecycle | manager 维护连接 | agent 初始化 MCP | session services | CLI 启动时 lazy connect；参考 §4 源码引用 | 个人项目优先小代码量、可调试、阶段闭环。 |
 
 ### 3.2 Tool 适配对比
@@ -39,7 +39,7 @@
 | --- | --- | --- | --- | --- | --- |
 | 默认策略 | permission 系统 | hooks/permissions | approval mode | Stage 09 先 ask/allow config；参考 §4 源码引用 | 个人项目优先小代码量、可调试、阶段闭环。 |
 | hook input | plugin transform | pre tool hooks | pre/post payload | 预留 pre/post hook；参考 §4 源码引用 | 个人项目优先小代码量、可调试、阶段闭环。 |
-| 结果 | normalized attachment/result | tool_result | CallToolResult | ToolResult normalize；参考 §4 源码引用 | 个人项目优先小代码量、可调试、阶段闭环。 |
+| 结果 | normalized attachment/result | tool_result | CallToolResult | MCP raw result -> ToolResult normalize -> model formatter；参考 §4 源码引用 | 外部工具输出不可直接污染上下文。 |
 
 ## 4. 源码引用（必读清单）
 
@@ -82,7 +82,8 @@ flowchart TB
 | `src/mcp/config.ts` | mcp server 配置 schema | ~70 | `McpConfig` |
 | `src/mcp/client.ts` | stdio connect、listTools、callTool | ~140 | `McpClientManager` |
 | `src/mcp/adapter.ts` | MCP tool -> ToolDef | ~90 | `adaptMcpTool` |
-| `src/mcp/result.ts` | CallToolResult normalize | ~60 | `normalizeMcpResult` |
+| `src/mcp/result.ts` | CallToolResult normalize，保留 attachment 摘要 | ~70 | `normalizeMcpResult` |
+| `src/mcp/format.ts` | MCP ToolResult 的 model-visible policy | ~50 | `formatMcpResult` |
 | `src/mcp/approval.ts` | 简单 allow/ask/reject | ~40 | `approveMcpTool` |
 
 ### 6.2 关键接口
@@ -102,7 +103,7 @@ export interface McpServerConfig {
 2. 第一次需要工具列表时启动 stdio client。
 3. `tools/list` 返回的工具转换为 namespaced ToolDef。
 4. 调用前按 server/tool 做 approval。
-5. `tools/call` 结果转换为 Kai ToolResult。
+5. `tools/call` 结果转换为 Kai ToolResult，再通过 formatter 生成模型可见内容。
 
 ## 7. 实施步骤（Step-by-step）
 
@@ -115,9 +116,9 @@ export interface McpServerConfig {
 Demo commands:
 
 ```bash
-pnpm kai mcp list
-pnpm kai run --provider fixture --script fixtures/mcp-tool.json "call memory tool"
-pnpm test -- stage-09
+bun run kai mcp list
+bun run kai run --provider fixture --script fixtures/mcp-tool.json "call memory tool"
+bun test -- stage-09
 ```
 
 ## 8. 验收标准
@@ -128,8 +129,9 @@ pnpm test -- stage-09
 | call | 模型可调用 `mcp__fixture__echo` |
 | approval | reject server 不会执行 |
 | failure | MCP 调用失败生成 ToolResult |
-| 代码预算 | 累计核心代码约 4200 行 |
+| formatting | 大 MCP result 被摘要或截断，不原样进入模型上下文 |
+| 代码预算 | 累计核心代码约 6180 行 |
 
 ## 9. 已知限制 & 下一阶段衔接
 
-Stage 09 不完整支持 resources、prompts、elicitation。下一阶段增加 skill 和 memory，让 Agent 能根据任务动态加载专门知识。
+Stage 09 不完整支持 resources、prompts、elicitation。下一阶段增加 skill 和 Memory v0，让 Agent 能根据任务动态加载专门知识和基础长期偏好。

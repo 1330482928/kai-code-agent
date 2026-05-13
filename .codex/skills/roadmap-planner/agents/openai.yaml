@@ -1,0 +1,4 @@
+interface:
+  display_name: "Roadmap Planner"
+  short_description: "Turn planning docs into staged roadmaps"
+  default_prompt: "Use $roadmap-planner to turn these project notes into a code-agent-roadmap style staged plan."

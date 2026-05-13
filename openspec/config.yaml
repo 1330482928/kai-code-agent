@@ -2,17 +2,37 @@ schema: spec-driven
 
 context: |
   Project: Kai Code Agent, a personal TypeScript CLI code-agent framework.
-  Runtime: Node.js 22, TypeScript, pnpm, Vitest.
+  Runtime: Bun 1.3.x, TypeScript, bun:test, Ink TUI.
+  Package manager: Bun. Use bun install, bun test, bun run check, and bun build --compile.
   Architecture references: Claude Code, OpenCode, Codex.
   Roadmap source: code-agent-roadmap.
+  Architecture layers: foundation, agent, coding, community, ui.
   Implementation style: staged, minimal first, behavior verified by OpenSpec.
+  Transcript-first rule: message/part transcript in session store is authoritative; UiEvent is a live process event; TUI/plain renderers are projections.
+  Thinking rule: provider adapters must split reasoning_content/thinking/<think> into hidden thinking parts; renderers must not print thinking as normal text by default.
+  Tool-call stream rule: partial tool arguments must not become executable ToolUse; only successfully parsed JSON may enter middleware, approval, runner, UI input display, or executable transcript parts.
+  ToolResult formatting rule: raw tool results must be normalized and passed through formatToolResultForModel before model continuation; failures must be structured, large output must be truncated or summarized by tool policy.
+  ToolUse summary rule: tool_use display must use summarizeToolUse(toolUse) so Ink and plain renderers share tool-specific title/detail output instead of raw JSON.
+  HITL rule: approval, ask_user_question, plan approval, MCP elicitation, and future login prompts should flow through a HumanInteractionManager queue; tools must not directly depend on Ink components.
+  UI input rule: Ink chat input should separate pure input-editor operations from keyboard state machine and command registry.
+  Renderer batching rule: Ink renderers should batch high-frequency stream event state commits with a short flush window, while preserving immediate boundary events.
+  Settings rule: model secrets remain in ~/.kai-code-agent/config.yaml; non-secret runtime settings use ~/.kai-code-agent/settings.json, .kai/settings.json, and .kai/settings.local.json.
+  Settings merge rule: allow fields are unioned, deny/reject fields are unioned and win over allow, ordinary scalar/object fields are overridden by later layers, and .kai/settings.local.json is gitignored by default.
+  Approval persistence rule: remembered approvals may be scoped to session, projectLocal, or user settings; they must not be session-only.
+  Slash context rule: slash commands may return PromptSubmission metadata for the next agent run; /skill, /plan, /profile, /model, /mode, and /resume should not be modeled as only local CLI commands.
+  Memory rule: memory is scoped, typed, source-attributed, retrievable with citations, and user-deletable; it must not replace transcript, instruction/context loading, or skills.
+  Memory safety rule: post-turn extraction produces candidates first; long-term writes must pass secret guard, dedupe, scope policy, and HITL/settings approval where required.
   Stage 01 product path: connect to a real OpenAI-compatible LLM API, not mock-first.
   Test provider: use a fixture provider only for tests, CI, and deterministic replay.
   User model config path: ~/.kai-code-agent/config.yaml.
   API keys must not be saved in the project root.
-  First-run CLI behavior: when `kai` starts without model config, run a setup wizard.
+  First-run CLI behavior: when `kai` starts without model config, run an Ink setup wizard.
   Provider preset: Minimax Global maps to baseURL https://api.minimax.io/v1 and internal provider openai.
   Shell goal: Bash tool naming and target shape should move toward Claude Bash, while implementation remains incremental.
+  Middleware is the default extension mechanism for approval, skills, memory, todo, audit, and plan guard.
+  Plan mode follows an OpenCode-style plan agent/profile plus Claude-style plan approval.
+  Skills require multi-directory discovery, SKILL.md frontmatter scan, progressive loading, slash activation, explicit invocation precedence, and duplicate/priority rules.
+  Memory system follows a staged path: Stage 10 manual Memory v0, Stage 13 typed/scoped memory with retrieval ranking, post-turn extraction, citations, lifecycle, and secret guard.
 
 rules:
   proposal:
@@ -20,7 +40,7 @@ rules:
     - Keep each change focused on one stage or one capability.
   design:
     - Explain tradeoffs against Claude Code, OpenCode, and Codex when relevant.
-    - Call out provider API, config, persistence, permissions, streaming, and testing impact.
+    - Call out provider API, config, persistence, permissions, streaming, middleware, plan mode, UI, and testing impact.
   specs:
     - Use clear SHALL-style requirements.
     - Include at least one acceptance scenario for each changed capability.

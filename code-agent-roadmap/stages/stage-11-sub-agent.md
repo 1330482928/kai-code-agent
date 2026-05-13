@@ -2,7 +2,7 @@
 
 ## 1. 本阶段目标
 
-实现子 Agent：主 Agent 可以通过 `sub_agent` 工具创建隔离上下文，让子 Agent 执行探索、验证或局部改动，然后把简明结果返回主 Agent。个人项目中，子 Agent 默认串行执行，后续再优化并发。
+实现子 Agent：主 Agent 可以通过 `sub_agent` 工具创建隔离上下文，让子 Agent 执行探索、验证或局部改动，然后把简明结果返回主 Agent。父子 Agent 之间不共享完整历史；父 Agent 只接收子 Agent summary、changed files、open questions 等受控 `ContextItem(kind="subagent")`。个人项目中，子 Agent 默认串行执行，后续再优化并发。
 
 闭环可调试性声明：本阶段完成后，可运行第 7 节中的 Demo commands 验证 CLI、测试和核心场景。
 
@@ -12,6 +12,7 @@
 | --- | --- |
 | Stage 08 | 子 Agent 失败可恢复 |
 | Stage 10 | agent definitions 可声明 skills |
+| Stage 06 | child context 和返回摘要通过 ContextItem/ModelInputBuilder 预算 |
 | Session store | side transcript |
 | Permission engine stub | 子 Agent 权限收敛 |
 
@@ -64,12 +65,13 @@ flowchart TB
   ChildLoop --> ScopedTools["Scoped Tools"]
   ChildLoop --> Side["Side Transcript"]
   ChildLoop --> Summary["Result Summary"]
-  Summary --> Parent
+  Summary --> Item["Sub-agent ContextItem"]
+  Item --> Parent
 
   classDef existing fill:#eef2ff,stroke:#4f46e5,color:#111;
   classDef new fill:#e8f5e9,stroke:#2e7d32,color:#111;
   class Parent,ScopedTools existing;
-  class Tool,Def,ChildCtx,ChildLoop,Side,Summary new;
+  class Tool,Def,ChildCtx,ChildLoop,Side,Summary,Item new;
 ```
 
 ## 6. 详细设计
@@ -82,6 +84,7 @@ flowchart TB
 | `src/agents/runner.ts` | 创建 child loop、执行、汇总 | ~170 | `runTool` |
 | `src/agents/transcript.ts` | side transcript store | ~60 | `SideTranscript` |
 | `src/tools/subAgent.ts` | tool wrapper | ~80 | `subAgentTool` |
+| `src/agents/context.ts` | child input 摘要和 parent result ContextItem | ~60 | `buildSubAgentContextItem` |
 
 ### 6.2 关键接口
 
@@ -94,6 +97,13 @@ export interface AgentDefinition {
   skills?: string[];
   maxTurns?: number;
 }
+
+export interface SubAgentResultContext {
+  summary: string;
+  changedFiles: string[];
+  openQuestions: string[];
+  sideTranscriptId: string;
+}
 ```
 
 ### 6.3 关键算法 / 数据流
@@ -103,6 +113,7 @@ export interface AgentDefinition {
 3. runner 创建 child RunContext，工具按 allowlist 过滤。
 4. child loop 最多运行 `maxTurns`。
 5. side transcript 落盘，final summary 作为 ToolResult 返回。
+6. 父 Agent 后续 turn 只通过 `ContextItem(kind="subagent")` 看到 summary，不自动继承 side transcript 全文。
 
 ## 7. 实施步骤（Step-by-step）
 
@@ -110,14 +121,15 @@ export interface AgentDefinition {
 2. 写 agent loader。
 3. 写 sub_agent tool。
 4. 改造 AgentLoop 允许嵌套调用但共享 provider factory。
-5. 增加 explorer fixture。
+5. 增加 sub-agent ContextItem builder，限制返回内容和 token budget。
+6. 增加 explorer fixture。
 
 Demo commands:
 
 ```bash
-pnpm kai agents list
-pnpm kai run --provider fixture --script fixtures/sub-agent.json "ask explorer to inspect"
-pnpm test -- stage-11
+bun run kai agents list
+bun run kai run --provider fixture --script fixtures/sub-agent.json "ask explorer to inspect"
+bun test -- stage-11
 ```
 
 ## 8. 验收标准
@@ -127,8 +139,9 @@ pnpm test -- stage-11
 | agent list | CLI 能列出 agent definitions |
 | 子 Agent 执行 | sub_agent tool 返回 summary |
 | 上下文隔离 | 子 Agent 不自动继承全部历史 |
+| context handoff | 子 Agent 结果以 ContextItem summary 交回父 Agent，不全文注入 |
 | transcript | side transcript 可导出 |
-| 代码预算 | 累计核心代码约 5100 行 |
+| 代码预算 | 累计核心代码约 7300 行 |
 
 ## 9. 已知限制 & 下一阶段衔接
 

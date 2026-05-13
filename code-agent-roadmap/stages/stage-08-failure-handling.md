@@ -1,8 +1,8 @@
-# Stage 08: Failure Handling
+# Stage 08: Bash Hardening + Failure Handling + Retry/Recovery
 
 ## 1. 本阶段目标
 
-让 Agent 在模型、网络、工具、用户中断、上下文异常时保持协议完整。核心是 retry policy、tool result backfill、abort cleanup 和可解释错误输出。对 `bash` 工具，Stage 08 明确 timeout、abort、非零 exit code 的标准结果格式，为后续后台任务打基础。
+让 Agent 在模型、网络、工具、用户中断、上下文异常时保持协议完整。核心是 retry policy、tool result backfill、abort cleanup、tool argument parse failure cleanup 和可解释错误输出。对 `bash` 工具，Stage 08 明确 timeout、abort、非零 exit code 的标准结果格式，为后续后台任务打基础。
 
 闭环可调试性声明：本阶段完成后，可运行第 7 节中的 Demo commands 验证 CLI、测试和核心场景。
 
@@ -32,6 +32,7 @@
 | cleanup | pending toolcalls 标错 | 生成 missing tool_result | item status error | 统一补 error result；参考 §4 源码引用 | 个人项目优先小代码量、可调试、阶段闭环。 |
 | 时机 | stream cleanup | fallback/abort | handler error | turn 结束前；参考 §4 源码引用 | 个人项目优先小代码量、可调试、阶段闭环。 |
 | 存储 | part update | transcript block | event item | session part；参考 §4 源码引用 | 个人项目优先小代码量、可调试、阶段闭环。 |
+| 参数解析失败 | stream accumulator error | invalid tool input 兜底 | parse error item | non-executable parse_error ToolResult；参考 §4 源码引用 | 保持协议完整且不执行半截工具。 |
 
 ### 3.3 用户中断对比
 
@@ -80,7 +81,8 @@ flowchart LR
 |---|---|---:|---|
 | `src/agent/retry.ts` | retryable 分类和 backoff | ~120 | `RetryPolicy` |
 | `src/agent/recovery.ts` | cleanup、missing result | ~160 | `recoverTurn` |
-| `src/tools/errors.ts` | ToolError 与 BashToolResult 标准化 | ~60 | `normalizeError` |
+| `src/coding/tools/errors.ts` | ToolError 与 BashToolResult 标准化，推断 error kind | ~70 | `normalizeError` |
+| `src/agent/tool-result-formatter.ts` | 失败结果的模型可见 JSON 格式 | ~40 | `formatToolResultForModel` |
 | `src/ui/errors.ts` | 用户可读错误 | ~60 | `normalizeError` |
 
 ### 6.2 关键接口
@@ -103,8 +105,10 @@ export interface RecoveryAction {
 1. provider 抛错时分类。
 2. retryable 且未超次数则等待 backoff 后重试。
 3. 不可重试时扫描 ToolState。
-4. 对每个未完成 tool call 写入 error ToolResult；`bash` timeout/abort 必须带 `interrupted`、`exitCode` 和输出摘要。
-5. session store 写入 failure event，UI 打印摘要。
+4. 对每个未完成 tool call 写入 error ToolResult；若 tool arguments 最终无法 JSON parse，写入 non-executable parse_error ToolResult，不触发 runner。
+5. `bash` timeout/abort 必须带 `interrupted`、`exitCode` 和输出摘要。
+6. 所有失败结果经过 formatter 转成结构化模型可见 JSON，而不是裸字符串。
+7. session store 写入 failure event，UI 打印摘要。
 
 ## 7. 实施步骤（Step-by-step）
 
@@ -117,9 +121,9 @@ export interface RecoveryAction {
 Demo commands:
 
 ```bash
-pnpm kai run --provider fixture --script fixtures/provider-retry.json "retry"
-pnpm kai run --provider fixture --script fixtures/bash-abort.json "abort bash"
-pnpm test -- stage-08
+bun run kai run --provider fixture --script fixtures/provider-retry.json "retry"
+bun run kai run --provider fixture --script fixtures/bash-abort.json "abort bash"
+bun test -- stage-08
 ```
 
 ## 8. 验收标准
@@ -128,10 +132,12 @@ pnpm test -- stage-08
 | --- | --- |
 | retry | mock 500 错误按策略重试 |
 | backfill | 悬空 tool_call 生成 error result |
+| parse failure | malformed final tool arguments 生成 parse_error result，工具不执行 |
+| formatted error | 模型可见失败结果包含 `ok:false`、`error.kind`、`message` |
 | abort | Ctrl-C 后 session 仍可 resume |
 | bash failure | timeout、abort、非零 exit code 都转成结构化 BashToolResult |
 | UI | 用户看到短错误摘要 |
-| 代码预算 | 累计核心代码约 3800 行 |
+| 代码预算 | 累计核心代码约 5780 行 |
 
 ## 9. 已知限制 & 下一阶段衔接
 

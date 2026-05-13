@@ -10,6 +10,7 @@ Kai Code Agent is a personal code-agent project planned from Claude Code, OpenCo
 - `src/session`: session and persistence layer.
 - `src/provider`: model provider adapters.
 - `src/context`: context building and compaction.
+- `src/memory`: staged memory system, from manual Memory v0 to scoped/cited lifecycle memory.
 - `src/prompt`: system prompt and prompt assembly.
 - `src/mcp`: MCP integration.
 - `src/permissions`: command and filesystem approval policies.
@@ -19,16 +20,14 @@ Kai Code Agent is a personal code-agent project planned from Claude Code, OpenCo
 ## Development
 
 ```bash
-corepack enable
-pnpm install
-pnpm dev
-pnpm typecheck
-pnpm test
+bun install
+bun run dev
+bun run check
+bun test
 ```
 
-The CLI is currently a scaffold. Start implementation from `code-agent-roadmap/stages/stage-01-minimal-loop.md`, then evolve toward the Bash/session/tooling plan described in the roadmap.
+The CLI is currently a scaffold. Start implementation from `code-agent-roadmap/stages/stage-01-minimal-loop.md`, then evolve toward the Bash/session/tooling/memory plan described in the roadmap.
 
 ## Repository Notes
 
 Generated runtime state should stay out of Git. Use `.kai/sessions`, `.kai/tmp`, and `.kai/tool-results` for local agent runs.
-
