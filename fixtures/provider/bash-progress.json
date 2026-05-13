@@ -1,0 +1,32 @@
+{
+  "responses": [
+    {
+      "events": [
+        {
+          "type": "tool_call",
+          "toolCall": {
+            "id": "call_bash",
+            "name": "bash",
+            "input": {
+              "command": "printf progress-demo"
+            }
+          }
+        },
+        {
+          "type": "done"
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "type": "text_delta",
+          "text": "Bash progress demo completed."
+        },
+        {
+          "type": "done"
+        }
+      ]
+    }
+  ]
+}

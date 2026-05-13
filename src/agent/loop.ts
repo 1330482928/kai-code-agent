@@ -1,5 +1,7 @@
-import type { Message, RunResult } from "./messages.js";
-import type { ProviderAdapter, ProviderEvent } from "../provider/types.js";
+import type { ProviderEvent } from "../provider/types.js";
+import type { ProviderAdapter } from "../provider/types.js";
+import { runReactLoop } from "./react-loop.js";
+import type { RunResult } from "./messages.js";
 
 export interface RunOnceOptions {
   task: string;
@@ -10,48 +12,11 @@ export interface RunOnceOptions {
 }
 
 export async function runOnce(options: RunOnceOptions): Promise<RunResult> {
-  const controller = options.signal ? null : new AbortController();
-  const signal = options.signal ?? controller?.signal;
-  if (!signal) {
-    throw new Error("failed to create abort signal");
-  }
-
-  const userMessage: Message = {
-    role: "user",
-    content: options.task,
-  };
-  const messages: Message[] = [userMessage];
-  let assistantText = "";
-  let usage: RunResult["usage"];
-
-  for await (const event of options.provider.stream(
-    { messages: [...messages], model: options.model },
-    signal,
-  )) {
-    if (event.type === "text_delta") {
-      assistantText += event.text;
-    } else if (event.type === "usage") {
-      usage = {
-        inputTokens: event.inputTokens,
-        outputTokens: event.outputTokens,
-      };
-    }
-
-    await options.onEvent?.(event);
-    if (event.type === "done") {
-      break;
-    }
-  }
-
-  const assistantMessage: Message = {
-    role: "assistant",
-    content: assistantText,
-  };
-  messages.push(assistantMessage);
-
-  return {
-    messages,
-    assistantMessage,
-    usage,
-  };
+  return runReactLoop({
+    task: options.task,
+    model: options.model,
+    provider: options.provider,
+    signal: options.signal,
+    onEvent: options.onEvent,
+  });
 }

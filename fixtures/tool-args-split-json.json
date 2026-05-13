@@ -1,0 +1,33 @@
+{
+  "responses": [
+    {
+      "events": [
+        {
+          "type": "tool_call_delta",
+          "id": "call_read",
+          "name": "read_file",
+          "argumentsDelta": "{\"path\":\"package"
+        },
+        {
+          "type": "tool_call_delta",
+          "id": "call_read",
+          "argumentsDelta": ".json\",\"limit\":120}"
+        },
+        {
+          "type": "done"
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "type": "text_delta",
+          "text": "Split JSON tool args were assembled and executed."
+        },
+        {
+          "type": "done"
+        }
+      ]
+    }
+  ]
+}

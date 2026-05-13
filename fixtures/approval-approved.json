@@ -1,0 +1,32 @@
+{
+  "responses": [
+    {
+      "events": [
+        {
+          "type": "tool_call",
+          "toolCall": {
+            "id": "call_bash",
+            "name": "bash",
+            "input": {
+              "command": "printf approval-approved-demo"
+            }
+          }
+        },
+        {
+          "type": "done"
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "type": "text_delta",
+          "text": "Approval success path is covered by middleware tests."
+        },
+        {
+          "type": "done"
+        }
+      ]
+    }
+  ]
+}

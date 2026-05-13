@@ -1,0 +1,16 @@
+{
+  "events": [
+    {
+      "type": "thinking_delta",
+      "text": "This hidden reasoning should not be printed by the plain renderer.",
+      "hidden": true
+    },
+    {
+      "type": "text_delta",
+      "text": "Hidden reasoning was suppressed from command output."
+    },
+    {
+      "type": "done"
+    }
+  ]
+}

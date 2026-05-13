@@ -1,0 +1,48 @@
+{
+  "responses": [
+    {
+      "events": [
+        {
+          "type": "tool_call",
+          "toolCall": {
+            "id": "call_question",
+            "name": "ask_user_question",
+            "input": {
+              "questions": [
+                {
+                  "id": "stage",
+                  "question": "Which direction should Kai take next?",
+                  "mode": "single",
+                  "options": [
+                    {
+                      "label": "Implement",
+                      "description": "Continue implementation."
+                    },
+                    {
+                      "label": "Explore",
+                      "description": "Clarify requirements first."
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "type": "done"
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "type": "text_delta",
+          "text": "Question request demo completed."
+        },
+        {
+          "type": "done"
+        }
+      ]
+    }
+  ]
+}
