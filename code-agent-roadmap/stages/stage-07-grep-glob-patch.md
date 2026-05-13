@@ -118,8 +118,8 @@ export type PatchChange =
 Demo commands:
 
 ```bash
-pnpm kai run --provider mock --script fixtures/grep.json "find marker"
-pnpm kai run --provider mock --script fixtures/apply-patch.json "patch file"
+pnpm kai run --provider fixture --script fixtures/grep.json "find marker"
+pnpm kai run --provider fixture --script fixtures/apply-patch.json "patch file"
 pnpm test -- stage-07
 ```
 

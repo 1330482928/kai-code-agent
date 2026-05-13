@@ -15,3 +15,7 @@ coverage/
 .kai/tool-results/
 tmp/
 
+/openspec
+code-agent-roadmap
+examples
+fixtures

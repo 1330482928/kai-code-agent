@@ -118,7 +118,7 @@ export interface CompactionResult {
 Demo commands:
 
 ```bash
-pnpm kai run --provider mock --max-input-tokens 800 "long task"
+pnpm kai run --provider fixture --script fixtures/long-context.json --max-input-tokens 800 "long task"
 pnpm kai sessions export <session-id>
 pnpm test -- stage-06
 ```

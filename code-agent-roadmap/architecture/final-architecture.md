@@ -10,6 +10,7 @@ flowchart TB
     Entry["kai command"]
     Render["Stream Renderer"]
     Config["Config Loader"]
+    FirstRun["First-run Wizard"]
   end
 
   subgraph Core["Agent Core"]
@@ -28,8 +29,8 @@ flowchart TB
 
   subgraph Provider["Provider Layer"]
     Adapter["Provider Adapter"]
-    Mock["Mock Provider"]
     OpenAICompat["OpenAI-compatible Provider"]
+    Fixture["Fixture Provider"]
   end
 
   subgraph Tools["Tool Layer"]
@@ -59,7 +60,9 @@ flowchart TB
     Audit["Audit Log"]
   end
 
-  Entry --> Config --> Loop
+  Entry --> Config
+  Config --> FirstRun
+  Config --> Loop
   Entry --> Render
   Loop --> Turn
   Loop --> Composer
@@ -67,8 +70,8 @@ flowchart TB
   Composer --> RuntimeCtx
   Composer --> CtxMgr
   Loop --> Adapter
-  Adapter --> Mock
   Adapter --> OpenAICompat
+  Adapter --> Fixture
   Adapter --> Stream
   Stream --> Render
   Stream --> Registry
@@ -98,6 +101,8 @@ flowchart TB
 
 | 流程 | 步骤 |
 | --- | --- |
+| 首次启动 | `kai` 无子命令 -> config loader -> 缺少默认模型 -> first-run wizard -> 写入 `~/.kai-code-agent/config.yaml` |
+| Provider 创建 | CLI 读取默认 model profile -> provider factory -> 根据内部 `provider` 类型创建 adapter |
 | 普通回答 | CLI 输入 -> Prompt Composer -> Provider -> Stream Renderer -> Session Store |
 | 工具调用 | Provider tool event -> Stream Processor -> Tool Registry -> Permission -> Tool execute -> ToolResult -> Provider continuation |
 | Bash 进度 | bash tool -> ToolContext.emit(bash_progress) -> Stream Processor -> Stream Renderer |
@@ -115,6 +120,14 @@ export interface AgentLoop {
 
 export interface ProviderAdapter {
   stream(input: ProviderInput, signal: AbortSignal): AsyncIterable<ProviderEvent>;
+}
+
+export interface ModelProfile {
+  preset: string;
+  provider: "openai" | string;
+  baseURL: string;
+  apiKey: string;
+  model: string;
 }
 
 export interface ToolDef<TInput = JsonValue> {
@@ -176,6 +189,7 @@ src/
 | 领域 | 主要参考 |
 | --- | --- |
 | Loop/stream | `$OPENCODE_REPO/packages/opencode/src/session/processor.ts` L118-L794 |
+| Provider/config | `$OPENCODE_REPO/packages/opencode/src/session/llm.ts` L76-L129；`$OPENCODE_REPO/packages/opencode/src/provider/provider.ts` L92-L190 |
 | Tool abstraction | `$OPENCODE_REPO/packages/opencode/src/tool/tool.ts` L16-L127 |
 | Tool orchestration | `$CLAUDE_CODE_REPO/src/services/tools/StreamingToolExecutor.ts` L73-L205 |
 | Bash command tool | `$CLAUDE_CODE_REPO/src/tools/BashTool/BashTool.tsx` L227-L294；`$OPENCODE_REPO/packages/opencode/src/tool/shell.ts` L261-L307 |

@@ -116,7 +116,7 @@ Demo commands:
 
 ```bash
 pnpm kai agents list
-pnpm kai run --provider mock --script fixtures/sub-agent.json "ask explorer to inspect"
+pnpm kai run --provider fixture --script fixtures/sub-agent.json "ask explorer to inspect"
 pnpm test -- stage-11
 ```
 

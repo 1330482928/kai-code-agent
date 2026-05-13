@@ -119,8 +119,8 @@ export type PermissionDecision =
 Demo commands:
 
 ```bash
-pnpm kai run --permission readOnly --provider mock --script fixtures/write-file.json "write"
-pnpm kai run --permission workspaceWrite --provider mock --script fixtures/bash-danger.json "remove"
+pnpm kai run --permission readOnly --provider fixture --script fixtures/write-file.json "write"
+pnpm kai run --permission workspaceWrite --provider fixture --script fixtures/bash-danger.json "remove"
 pnpm test -- stage-12
 ```
 

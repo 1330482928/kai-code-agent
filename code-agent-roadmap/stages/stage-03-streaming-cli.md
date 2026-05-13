@@ -119,8 +119,8 @@ export type UiEvent =
 Demo commands:
 
 ```bash
-pnpm kai run --provider mock --script fixtures/stream-text.json "stream"
-pnpm kai run --provider mock --script fixtures/tool-stream.json "inspect file"
+pnpm kai run --provider fixture --script fixtures/stream-text.json "stream"
+pnpm kai run --provider fixture --script fixtures/tool-stream.json "inspect file"
 pnpm test -- stage-03
 ```
 

@@ -134,8 +134,8 @@ export interface PartRecord {
 Demo commands:
 
 ```bash
-pnpm kai run --provider mock --session new "remember alpha"
-pnpm kai run --provider mock --script fixtures/bash.json --session <session-id> "run pwd"
+pnpm kai run --provider fixture --session new --script fixtures/session-alpha.json "remember alpha"
+pnpm kai run --provider fixture --script fixtures/bash.json --session <session-id> "run pwd"
 pnpm kai sessions
 pnpm kai resume <session-id> "what did I say?"
 pnpm test -- stage-04

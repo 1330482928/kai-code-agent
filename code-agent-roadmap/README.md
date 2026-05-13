@@ -6,8 +6,8 @@ Kai Code Agent 是一个个人 TypeScript CLI code agent。目标不是一次性
 
 | 目标 | 说明 |
 | --- | --- |
-| 个人可控 | 单人可维护，核心代码目标约 6.4K 行，不引入复杂服务端 |
-| 可闭环 | 每阶段都能用 mock provider 或真实 provider 跑出可观察 demo |
+| 个人可控 | 单人可维护，核心代码目标约 6.9K 行，不引入复杂服务端 |
+| 可闭环 | 每阶段都能用真实 provider 或 fixture provider 跑出可观察 demo |
 | 可学习 | 每个模块都能映射到 OpenCode、Claude Code、Codex 的设计参考 |
 | 可替换 | LLM provider、工具、权限策略、MCP server 都通过接口隔离 |
 | 可恢复 | 会话、工具结果、失败信息、压缩摘要都能落盘或重建 |
@@ -26,7 +26,7 @@ xychart-beta
 
 ```mermaid
 flowchart LR
-  S01["01 minimal loop\ncan chat once"] --> S02["02 core tools\ncan read/write/edit/bash"]
+  S01["01 real LLM loop\ncan chat with API"] --> S02["02 core tools\ncan read/write/edit/bash"]
   S02 --> S03["03 streaming CLI\ncan stream text/tools"]
   S03 --> S04["04 persistence\ncan resume session"]
   S04 --> S05["05 system prompt\ncan load instructions"]
@@ -47,7 +47,7 @@ flowchart LR
 
 | 阶段 | 名称 | can do | 核心增量 |
 | --- | --- | --- | --- |
-| 01 | minimal loop | 输入一次任务，收到一次模型回答 | CLI、provider mock、message model |
+| 01 | minimal real LLM loop | 首次配置模型，调用真实 LLM API 收到回答 | CLI、first-run config、OpenAI-compatible provider、fixture provider、message model |
 | 02 | core tools | 模型可以读文件、写文件、编辑文件、跑 Bash 命令 | Tool registry、read、write、edit、bash |
 | 03 | streaming CLI | 文本和工具调用实时显示 | stream processor、tool lifecycle UI |
 | 04 | persistence | 会话可恢复、消息可追踪 | SQLite/JSONL store、session id、part model |
@@ -111,21 +111,21 @@ kai-code-agent/
 
 | 阶段 | 累计核心行数 | 新增核心行数 | 主要模块 |
 | --- | ---: | ---: | --- |
-| 01 | 400 | 400 | CLI、message、mock provider、loop |
-| 02 | 1200 | 800 | registry、read、write、edit、bash |
-| 03 | 1700 | 500 | stream processor、terminal renderer |
-| 04 | 2000 | 300 | session store、resume |
-| 05 | 2300 | 300 | instruction loader、prompt composer |
-| 06 | 2900 | 600 | token budget、compaction |
-| 07 | 3400 | 500 | grep、glob、apply patch |
-| 08 | 3800 | 400 | retry、recovery、backfill |
-| 09 | 4200 | 400 | MCP client adapter |
-| 10 | 4700 | 500 | skill loader、memory |
-| 11 | 5100 | 400 | sub-agent runner |
-| 12 | 5400 | 300 | permission engine |
-| 13 | 6400 | 1000 | config、telemetry、bash task store、bash_status、release polish |
+| 01 | 850 | 850 | CLI、first-run config、message、OpenAI-compatible provider、fixture provider、loop |
+| 02 | 1650 | 800 | registry、read、write、edit、bash |
+| 03 | 2150 | 500 | stream processor、terminal renderer |
+| 04 | 2450 | 300 | session store、resume |
+| 05 | 2750 | 300 | instruction loader、prompt composer |
+| 06 | 3350 | 600 | token budget、compaction |
+| 07 | 3850 | 500 | grep、glob、apply patch |
+| 08 | 4250 | 400 | retry、recovery、backfill |
+| 09 | 4650 | 400 | MCP client adapter |
+| 10 | 5150 | 500 | skill loader、memory |
+| 11 | 5550 | 400 | sub-agent runner |
+| 12 | 5850 | 300 | permission engine |
+| 13 | 6850 | 1000 | config、telemetry、bash task store、bash_status、release polish |
 
-测试、fixtures、示例脚本预算另计约 2.1K 行。核心实现目标约 6.4K，允许在 6.0K 到 8.0K 行窗口内按质量需要浮动。
+测试、fixtures、示例脚本预算另计约 2.3K 行。核心实现目标约 6.9K，允许在 6.5K 到 8.5K 行窗口内按质量需要浮动。
 
 ## 学习路线
 

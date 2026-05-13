@@ -1,20 +1,29 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  Project: Kai Code Agent, a personal TypeScript CLI code-agent framework.
+  Runtime: Node.js 22, TypeScript, pnpm, Vitest.
+  Architecture references: Claude Code, OpenCode, Codex.
+  Roadmap source: code-agent-roadmap.
+  Implementation style: staged, minimal first, behavior verified by OpenSpec.
+  Stage 01 product path: connect to a real OpenAI-compatible LLM API, not mock-first.
+  Test provider: use a fixture provider only for tests, CI, and deterministic replay.
+  User model config path: ~/.kai-code-agent/config.yaml.
+  API keys must not be saved in the project root.
+  First-run CLI behavior: when `kai` starts without model config, run a setup wizard.
+  Provider preset: Minimax Global maps to baseURL https://api.minimax.io/v1 and internal provider openai.
+  Shell goal: Bash tool naming and target shape should move toward Claude Bash, while implementation remains incremental.
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+rules:
+  proposal:
+    - Include Motivation, Scope, Non-goals, and Risks.
+    - Keep each change focused on one stage or one capability.
+  design:
+    - Explain tradeoffs against Claude Code, OpenCode, and Codex when relevant.
+    - Call out provider API, config, persistence, permissions, streaming, and testing impact.
+  specs:
+    - Use clear SHALL-style requirements.
+    - Include at least one acceptance scenario for each changed capability.
+  tasks:
+    - Keep tasks independently reviewable.
+    - Include tests and validation commands.

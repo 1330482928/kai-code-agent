@@ -145,13 +145,13 @@ export interface BashToolResult {
 4. 实现 `write_file`，限制在 cwd 内。
 5. 实现 `edit_file`，要求 oldString 唯一匹配，必要时 replaceAll。
 6. 实现 `bash`，默认 30 秒 timeout，输出 stdoutPreview/stderrPreview/exitCode/interrupted/outputBytes 到 `metadata.bash`；暂不支持 `run_in_background`。
-7. 扩展 mock provider：可按 fixture 触发 tool call。
+7. 扩展 fixture provider：可按 fixture 触发 tool call。
 
 Demo commands:
 
 ```bash
-pnpm kai run --provider mock --script fixtures/read-file.json "read package"
-pnpm kai run --provider mock --script fixtures/bash.json "run pwd"
+pnpm kai run --provider fixture --script fixtures/read-file.json "read package"
+pnpm kai run --provider fixture --script fixtures/bash.json "run pwd"
 pnpm test -- stage-02
 ```
 

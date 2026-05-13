@@ -116,7 +116,7 @@ Demo commands:
 
 ```bash
 pnpm kai prompt --debug
-pnpm kai run --provider mock "what repo rules apply?"
+pnpm kai run "what repo rules apply?"
 pnpm test -- stage-05
 ```
 

@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "tsx src/cli/main.ts",
+    "kai": "tsx src/cli/main.ts",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
@@ -16,13 +17,16 @@
     "node": ">=22"
   },
   "dependencies": {
+    "ink": "^7.0.2",
+    "react": "^19.2.6",
+    "yaml": "^2.9.0",
     "zod": "^3.25.0"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",
+    "@types/react": "^19.2.14",
     "tsx": "^4.19.0",
     "typescript": "^5.8.0",
     "vitest": "^3.1.0"
   }
 }
-

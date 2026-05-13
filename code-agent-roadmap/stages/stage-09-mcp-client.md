@@ -116,7 +116,7 @@ Demo commands:
 
 ```bash
 pnpm kai mcp list
-pnpm kai run --provider mock --script fixtures/mcp-tool.json "call memory tool"
+pnpm kai run --provider fixture --script fixtures/mcp-tool.json "call memory tool"
 pnpm test -- stage-09
 ```
 

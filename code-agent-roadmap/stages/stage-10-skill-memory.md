@@ -115,7 +115,7 @@ Demo commands:
 ```bash
 pnpm kai skills list
 pnpm kai memory add preference "Prefer concise final answers"
-pnpm kai run --provider mock "$typescript refactor this file"
+pnpm kai run "$typescript refactor this file"
 pnpm test -- stage-10
 ```
 

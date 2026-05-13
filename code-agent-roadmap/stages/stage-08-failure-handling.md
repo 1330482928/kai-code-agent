@@ -117,8 +117,8 @@ export interface RecoveryAction {
 Demo commands:
 
 ```bash
-pnpm kai run --provider mock --script fixtures/provider-retry.json "retry"
-pnpm kai run --provider mock --script fixtures/bash-abort.json "abort bash"
+pnpm kai run --provider fixture --script fixtures/provider-retry.json "retry"
+pnpm kai run --provider fixture --script fixtures/bash-abort.json "abort bash"
 pnpm test -- stage-08
 ```
 

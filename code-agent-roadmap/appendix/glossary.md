@@ -20,5 +20,5 @@
 | Sub-agent | 在隔离上下文里执行子任务的 agent 实例 |
 | Side transcript | 子 Agent 运行过程的单独消息记录 |
 | Provider Adapter | 把内部 message/tool 转换为某个 LLM API 的模块 |
-| Mock Provider | 不访问网络、可预测返回的测试 provider |
+| Fixture Provider | 不访问网络、按 fixture 重放 ProviderEvent 的测试 provider |
 | Apply Patch | 结构化补丁协议，用于安全地新增、修改、删除文件 |
