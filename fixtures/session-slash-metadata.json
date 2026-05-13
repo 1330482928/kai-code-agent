@@ -1,0 +1,6 @@
+{
+  "events": [
+    { "type": "text_delta", "text": "slash metadata accepted" },
+    { "type": "done" }
+  ]
+}

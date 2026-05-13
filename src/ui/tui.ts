@@ -5,7 +5,11 @@ import React, { useMemo, useState } from "react";
 
 import { providerPresets } from "../config/first-run.js";
 import { parseModelConfig, type ModelConfig, type ModelProfile } from "../config/model-config.js";
+import type { LoadedSession, PromptSubmission } from "../session/types.js";
 
+import { ChatShell, createChatShellState } from "./chat-shell.js";
+import { createCommandInputState, useCommandInput } from "./use-command-input.js";
+import type { CommandResult } from "./command-registry.js";
 import { maskSecret } from "./secrets.js";
 import {
   buildModelConfigFromSetupDraft,
@@ -57,6 +61,29 @@ export async function runInkTaskEntry(
       throw new Error("Task entry did not return a task");
     }
     return result;
+  } finally {
+    instance.cleanup();
+  }
+}
+
+export async function runInkChatPrompt(
+  input: {
+    sessionId: string;
+    loaded?: LoadedSession;
+    status?: string;
+  },
+  options: RenderStreamOptions = {},
+): Promise<PromptSubmission> {
+  const instance = render(
+    React.createElement(ChatPromptApp, input),
+    toRenderOptions(options),
+  );
+  try {
+    const result = await instance.waitUntilExit();
+    if (result === undefined) {
+      throw new Error("Chat prompt cancelled");
+    }
+    return result as PromptSubmission;
   } finally {
     instance.cleanup();
   }
@@ -196,6 +223,58 @@ function TaskEntryApp({ profile }: { profile: ModelProfile }): React.ReactElemen
     error ? React.createElement(Text, { color: "red" }, error) : null,
     React.createElement(Text, { dimColor: true }, "Type a task and press Enter."),
   );
+}
+
+function ChatPromptApp({
+  sessionId,
+  loaded,
+  status,
+}: {
+  sessionId: string;
+  loaded?: LoadedSession;
+  status?: string;
+}): React.ReactElement {
+  const { exit } = useApp();
+  const [localStatus, setLocalStatus] = useState(status);
+  const input = useCommandInput({
+    history: loaded?.messages
+      .filter((message) => message.role === "user")
+      .map((message) => message.parts.filter((part) => part.type === "text").map((part) => part.text ?? "").join(""))
+      .filter(Boolean),
+    onSubmit(submission) {
+      if (!submission.text.trim() && !submission.metadata) {
+        setLocalStatus("Prompt is required");
+        return;
+      }
+      exit(submission);
+    },
+    onLocalAction(result) {
+      setLocalStatus(statusFromLocalAction(result));
+    },
+  });
+  const state = createChatShellState({
+    sessionId,
+    loaded,
+    input,
+    status: localStatus,
+  });
+  return React.createElement(ChatShell, { state });
+}
+
+function statusFromLocalAction(result: CommandResult): string {
+  if (result.type === "resume_session") {
+    return `Use kai chat --session ${result.sessionId} to switch sessions.`;
+  }
+  if (result.type === "local_action" && result.action === "help") {
+    return result.message ?? "";
+  }
+  if (result.type === "local_action" && result.action === "clear") {
+    return "View cleared.";
+  }
+  if (result.type === "local_action" && result.action === "plan_open") {
+    return "Use kai plan open --session <id> to inspect the active plan.";
+  }
+  return "";
 }
 
 function PresetSelect({ selectedIndex }: { selectedIndex: number }): React.ReactElement {

@@ -1,0 +1,6 @@
+{
+  "events": [
+    { "type": "text_delta", "text": "you said alpha" },
+    { "type": "done" }
+  ]
+}

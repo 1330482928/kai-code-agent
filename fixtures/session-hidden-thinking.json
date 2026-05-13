@@ -1,0 +1,7 @@
+{
+  "events": [
+    { "type": "thinking_delta", "text": "hidden plan", "hidden": true },
+    { "type": "text_delta", "text": "visible answer" },
+    { "type": "done" }
+  ]
+}
