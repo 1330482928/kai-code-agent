@@ -1,0 +1,39 @@
+{
+  "responses": [
+    {
+      "events": [
+        {
+          "type": "tool_call",
+          "toolCall": {
+            "id": "plan_enter_1",
+            "name": "plan_enter",
+            "input": {}
+          }
+        },
+        { "type": "done" }
+      ]
+    },
+    {
+      "events": [
+        {
+          "type": "tool_call",
+          "toolCall": {
+            "id": "plan_write_1",
+            "name": "plan_write",
+            "input": {
+              "content": "# Plan\n\n- Inspect the code\n- Implement the fix\n- Run tests",
+              "slug": "fixture-plan"
+            }
+          }
+        },
+        { "type": "done" }
+      ]
+    },
+    {
+      "events": [
+        { "type": "text_delta", "text": "Plan written." },
+        { "type": "done" }
+      ]
+    }
+  ]
+}

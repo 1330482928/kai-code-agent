@@ -1,0 +1,52 @@
+{
+  "responses": [
+    {
+      "events": [
+        {
+          "type": "tool_call",
+          "toolCall": {
+            "id": "plan_enter_1",
+            "name": "plan_enter",
+            "input": {}
+          }
+        },
+        { "type": "done" }
+      ]
+    },
+    {
+      "events": [
+        {
+          "type": "tool_call",
+          "toolCall": {
+            "id": "plan_write_1",
+            "name": "plan_write",
+            "input": {
+              "content": "# Plan\n\n- Needs revision",
+              "slug": "rejected-plan"
+            }
+          }
+        },
+        { "type": "done" }
+      ]
+    },
+    {
+      "events": [
+        {
+          "type": "tool_call",
+          "toolCall": {
+            "id": "plan_exit_1",
+            "name": "plan_exit",
+            "input": {}
+          }
+        },
+        { "type": "done" }
+      ]
+    },
+    {
+      "events": [
+        { "type": "text_delta", "text": "Plan needs revision." },
+        { "type": "done" }
+      ]
+    }
+  ]
+}

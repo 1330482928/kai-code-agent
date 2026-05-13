@@ -1,0 +1,23 @@
+{
+  "responses": [
+    {
+      "events": [
+        {
+          "type": "tool_call",
+          "toolCall": {
+            "id": "plan_enter_1",
+            "name": "plan_enter",
+            "input": {}
+          }
+        },
+        { "type": "done" }
+      ]
+    },
+    {
+      "events": [
+        { "type": "text_delta", "text": "Planning mode is ready." },
+        { "type": "done" }
+      ]
+    }
+  ]
+}

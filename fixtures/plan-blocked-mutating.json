@@ -1,0 +1,26 @@
+{
+  "responses": [
+    {
+      "events": [
+        {
+          "type": "tool_call",
+          "toolCall": {
+            "id": "write_1",
+            "name": "write_file",
+            "input": {
+              "path": "blocked.txt",
+              "content": "no"
+            }
+          }
+        },
+        { "type": "done" }
+      ]
+    },
+    {
+      "events": [
+        { "type": "text_delta", "text": "Mutation blocked in plan mode." },
+        { "type": "done" }
+      ]
+    }
+  ]
+}
