@@ -1,0 +1,34 @@
+{
+  "responses": [
+    {
+      "events": [
+        {
+          "type": "tool_call",
+          "toolCall": {
+            "id": "call_bash_pwd",
+            "name": "bash",
+            "input": {
+              "command": "pwd",
+              "timeout": 30000,
+              "description": "print working directory"
+            }
+          }
+        },
+        {
+          "type": "done"
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "type": "text_delta",
+          "text": "Ran pwd through fixture tool loop."
+        },
+        {
+          "type": "done"
+        }
+      ]
+    }
+  ]
+}

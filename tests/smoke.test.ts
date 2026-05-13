@@ -29,6 +29,42 @@ describe("stage 01 CLI", () => {
     expect(stdout.output()).toBe("Hello from fixture.\n");
   });
 
+  it("runs read-file fixture tool loop through the CLI", async () => {
+    const stdout = createWritableCollector();
+
+    await main(
+      [
+        "run",
+        "--provider",
+        "fixture",
+        "--script",
+        path.join(process.cwd(), "fixtures/provider/read-file.json"),
+        "read package",
+      ],
+      { stdout: stdout.stream, cwd: process.cwd() },
+    );
+
+    expect(stdout.output()).toBe("Read package.json through fixture tool loop.\n");
+  });
+
+  it("runs bash fixture tool loop through the CLI", async () => {
+    const stdout = createWritableCollector();
+
+    await main(
+      [
+        "run",
+        "--provider",
+        "fixture",
+        "--script",
+        path.join(process.cwd(), "fixtures/provider/bash.json"),
+        "run pwd",
+      ],
+      { stdout: stdout.stream, cwd: process.cwd() },
+    );
+
+    expect(stdout.output()).toBe("Ran pwd through fixture tool loop.\n");
+  });
+
   it("shows config with a redacted API key", async () => {
     const dir = await mkdtemp(path.join(tmpdir(), "kai-cli-test-"));
     const configPath = path.join(dir, ".kai-code-agent", "config.yaml");

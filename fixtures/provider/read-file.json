@@ -1,0 +1,33 @@
+{
+  "responses": [
+    {
+      "events": [
+        {
+          "type": "tool_call",
+          "toolCall": {
+            "id": "call_read_package",
+            "name": "read_file",
+            "input": {
+              "path": "package.json",
+              "limit": 1200
+            }
+          }
+        },
+        {
+          "type": "done"
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "type": "text_delta",
+          "text": "Read package.json through fixture tool loop."
+        },
+        {
+          "type": "done"
+        }
+      ]
+    }
+  ]
+}
