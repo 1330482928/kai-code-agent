@@ -2,9 +2,12 @@ import type { Readable, Writable } from "node:stream";
 
 import type { ProviderAdapter } from "../provider/types.js";
 import type { LoadedSession, PromptSubmission, SessionRecord } from "../session/types.js";
+import { loadSkillCatalog } from "../skills/index.js";
 import type { SqliteSessionStore } from "../session/sqlite-store.js";
 import { rebuildProviderMessages } from "../session/rebuild.js";
 import { replaySessionPlain } from "../session/export.js";
+import { createDefaultCommandRegistry, type CommandRegistry } from "../ui/command-registry.js";
+import { createSkillSlashCommands } from "../ui/slash/skills.js";
 import { runInkChatPrompt } from "../ui/tui.js";
 
 export interface ChatLoopStreams {
@@ -17,6 +20,7 @@ export interface ChatLoopOptions extends ChatLoopStreams {
   store: SqliteSessionStore;
   sessionId?: string;
   cwd: string;
+  homeDir?: string;
   model: string;
   createProvider(): ProviderAdapter;
   runTurn(input: {
@@ -37,10 +41,12 @@ export async function runChatLoop(options: ChatLoopOptions): Promise<void> {
   const session = loaded?.session ?? options.store.createSession({ cwd: options.cwd });
 
   for (;;) {
+    const registry = await createChatCommandRegistry(options);
     const submission = await runInkChatPrompt(
       {
         sessionId: session.id,
         loaded,
+        registry,
       },
       {
         stdin: options.stdin,
@@ -87,4 +93,14 @@ export function writeChatSnapshot(
 
 export function historyForRun(loaded: LoadedSession | undefined) {
   return loaded ? rebuildProviderMessages(loaded) : undefined;
+}
+
+async function createChatCommandRegistry(options: Pick<ChatLoopOptions, "cwd" | "homeDir">): Promise<CommandRegistry> {
+  const catalog = await loadSkillCatalog({
+    cwd: options.cwd,
+    ...(options.homeDir ? { homeDir: options.homeDir } : {}),
+  });
+  return createDefaultCommandRegistry({
+    extraEntries: createSkillSlashCommands(catalog.selected),
+  });
 }

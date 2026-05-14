@@ -24,6 +24,7 @@ import { ToolAccumulator, type ToolAssemblyResult } from "./tool-accumulator.js"
 import { ToolState } from "./tool-state.js";
 import { formatToolResultForModel } from "./tool-result-formatter.js";
 import type { LoadedSession, PromptSubmission, SessionRecorder } from "../session/types.js";
+import { normalizePromptTaskForSkillActivation } from "../skills/router.js";
 import type { AgentProfileName } from "./profiles.js";
 import { isRetryableProviderError, runWithRetry, type RetryPolicy } from "./retry.js";
 import {
@@ -61,6 +62,7 @@ export interface RunReactLoopOptions {
   onToolResult?: (toolUse: ExecutableToolUse, rawResult: ToolResult, modelContent: string) => void | Promise<void>;
   retryPolicy?: RetryPolicy;
   retrySleep?: (ms: number, signal?: AbortSignal) => Promise<void>;
+  maxIterations?: number;
 }
 
 export interface ReactLoopContextOptions extends ContextAssemblyOptions {
@@ -76,9 +78,15 @@ export async function runReactLoop(options: RunReactLoopOptions): Promise<RunRes
     throw new Error("failed to create abort signal");
   }
 
+  const shouldNormalizeSkillPrompt = options.middleware?.some((middleware) => middleware.name === "skills") ?? false;
+  const normalizedPrompt = shouldNormalizeSkillPrompt
+    ? normalizePromptTaskForSkillActivation(options.task, options.promptSubmission)
+    : { task: options.task, ...(options.promptSubmission ? { submission: options.promptSubmission } : {}) };
+  const task = normalizedPrompt.task;
+  const promptSubmission = normalizedPrompt.submission ?? options.promptSubmission;
   const userMessage: Message = {
     role: "user",
-    content: options.task,
+    content: task,
   };
   const messages: Message[] = [
     ...(options.initialMessages ?? []),
@@ -99,19 +107,20 @@ export async function runReactLoop(options: RunReactLoopOptions): Promise<RunRes
   try {
     await pipeline.beforeAgentRun({
       ...baseContext,
-      task: options.task,
+      task,
       model: options.model,
     });
     await options.sessionRecorder?.recordUserMessage({
-      task: options.task,
-      submission: options.promptSubmission,
+      task,
+      submission: promptSubmission,
       profile: currentProfile,
-      requestedProfile: typeof options.promptSubmission?.metadata?.requestedProfile === "string"
-        ? options.promptSubmission.metadata.requestedProfile
+      requestedProfile: typeof promptSubmission?.metadata?.requestedProfile === "string"
+        ? promptSubmission.metadata.requestedProfile
         : undefined,
     });
 
-    for (let iteration = 0; iteration < MAX_REACT_ITERATIONS; iteration += 1) {
+    const maxIterations = options.maxIterations ?? MAX_REACT_ITERATIONS;
+    for (let iteration = 0; iteration < maxIterations; iteration += 1) {
       throwIfAborted(signal);
       let assistantText = "";
       const assistantThinking: string[] = [];
@@ -122,16 +131,20 @@ export async function runReactLoop(options: RunReactLoopOptions): Promise<RunRes
       let currentAttemptHadIrreversibleOutput = false;
       let providerFailure: unknown;
 
-  const contextBuild = await buildProviderInputForIteration(options, {
-    cwd,
-    messages,
-    model: options.model,
-    profileName: currentProfile,
-    tools: registryForProfile(options, currentProfile)?.providerSchemas(),
-    currentUserOrdinal: options.initialMessages?.length ?? 0,
-    provider: options.provider,
-    signal,
-  });
+      const contextBuild = await buildProviderInputForIteration(options, {
+        sessionId,
+        cwd,
+        task,
+        messages,
+        model: options.model,
+        profileName: currentProfile,
+        ...(promptSubmission ? { promptSubmission } : {}),
+        tools: registryForProfile(options, currentProfile)?.providerSchemas(),
+        currentUserOrdinal: options.initialMessages?.length ?? 0,
+        provider: options.provider,
+        pipeline,
+        signal,
+      });
       await options.onContextBuild?.(contextBuild);
 
       const providerInput: ProviderInput = await pipeline.beforeModel({
@@ -325,7 +338,7 @@ export async function runReactLoop(options: RunReactLoopOptions): Promise<RunRes
       }
     }
 
-    throw new Error(`ReAct loop exceeded ${MAX_REACT_ITERATIONS} iterations`);
+    throw new Error(`ReAct loop exceeded ${options.maxIterations ?? MAX_REACT_ITERATIONS} iterations`);
   } catch (error) {
     if (isAbortError(error) || signal.aborted) {
       await emitUi(options, { type: "turn_aborted", reason: "aborted" });
@@ -409,17 +422,30 @@ function registryForProfile(options: RunReactLoopOptions, profileName: AgentProf
 async function buildProviderInputForIteration(
   options: RunReactLoopOptions,
   input: {
+    sessionId: string;
     cwd: string;
+    task: string;
     messages: Message[];
     model: string;
     profileName: AgentProfileName;
+    promptSubmission?: PromptSubmission;
     tools?: ProviderInput["tools"];
     currentUserOrdinal: number;
     provider: ProviderAdapter;
+    pipeline: MiddlewarePipeline;
     signal: AbortSignal;
   },
 ): Promise<ModelInputBuildResult> {
   const contextOptions = options.contextOptions ?? {};
+  const middlewareItems = await input.pipeline.contextItems({
+    sessionId: input.sessionId,
+    cwd: input.cwd,
+    signal: input.signal,
+    task: input.task,
+    messages: input.messages,
+    ...(input.promptSubmission ? { promptSubmission: input.promptSubmission } : {}),
+    profileName: input.profileName,
+  });
   const items: ContextItem[] = await buildContextItemsForRun({
     cwd: input.cwd,
     messages: input.messages,
@@ -428,7 +454,10 @@ async function buildProviderInputForIteration(
     currentUserOrdinal: input.currentUserOrdinal,
     contextOptions,
     approvedPlanContext: options.approvedPlanContext,
-    extraItems: options.contextItems,
+    extraItems: [
+      ...(options.contextItems ?? []),
+      ...middlewareItems,
+    ],
   });
 
   const manager = new ContextManager({

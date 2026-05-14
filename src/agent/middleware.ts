@@ -2,6 +2,7 @@ import type { Message, RunResult } from "../foundation/message.js";
 import type { ProviderInput } from "../provider/types.js";
 import type { ExecutableToolUse, ToolResult } from "../foundation/tool.js";
 import type { ContextItem, ModelInputBuildResult } from "../coding/context/items.js";
+import type { PromptSubmission } from "../session/types.js";
 
 export interface MiddlewareContextBase {
   sessionId: string;
@@ -18,6 +19,13 @@ export interface AgentRunAfterContext extends AgentRunContext {
   status: "success" | "error" | "aborted";
   result?: RunResult;
   error?: unknown;
+}
+
+export interface ContextItemsContext extends MiddlewareContextBase {
+  task: string;
+  messages: Message[];
+  promptSubmission?: PromptSubmission;
+  profileName?: string;
 }
 
 export interface ModelContext extends MiddlewareContextBase {
@@ -46,6 +54,7 @@ export interface AgentMiddleware {
   name?: string;
   beforeAgentRun?(context: AgentRunContext): void | Promise<void>;
   afterAgentRun?(context: AgentRunAfterContext): void | Promise<void>;
+  contextItems?(context: ContextItemsContext): ContextItem[] | void | Promise<ContextItem[] | void>;
   beforeModel?(context: ModelContext): ProviderInput | void | Promise<ProviderInput | void>;
   afterModel?(context: ModelAfterContext): void | Promise<void>;
   beforeToolUse?(context: ToolUseContext): ToolResult | void | Promise<ToolResult | void>;
@@ -70,6 +79,18 @@ export class MiddlewarePipeline {
     for (const middleware of this.middleware) {
       await middleware.afterAgentRun?.(context);
     }
+  }
+
+  async contextItems(context: ContextItemsContext): Promise<ContextItem[]> {
+    const items: ContextItem[] = [];
+    for (const middleware of this.middleware) {
+      throwIfAborted(context.signal);
+      const contributed = await middleware.contextItems?.(context);
+      if (contributed) {
+        items.push(...contributed);
+      }
+    }
+    return items;
   }
 
   async beforeModel(context: ModelContext): Promise<ProviderInput> {

@@ -21,7 +21,11 @@ export interface CommandRegistry {
   resolve(input: string): CommandResult;
 }
 
-export function createDefaultCommandRegistry(): CommandRegistry {
+export interface DefaultCommandRegistryOptions {
+  extraEntries?: CommandEntry[];
+}
+
+export function createDefaultCommandRegistry(options: DefaultCommandRegistryOptions = {}): CommandRegistry {
   const entries: CommandEntry[] = [
     {
       name: "help",
@@ -106,6 +110,7 @@ export function createDefaultCommandRegistry(): CommandRegistry {
       },
     },
   ];
+  appendExtraEntries(entries, options.extraEntries ?? []);
 
   return {
     entries() {
@@ -124,6 +129,17 @@ export function createDefaultCommandRegistry(): CommandRegistry {
       return entry.run(parsed.args);
     },
   };
+}
+
+function appendExtraEntries(entries: CommandEntry[], extraEntries: CommandEntry[]): void {
+  const names = new Set(entries.map((entry) => entry.name));
+  for (const entry of extraEntries) {
+    if (names.has(entry.name)) {
+      continue;
+    }
+    entries.push(entry);
+    names.add(entry.name);
+  }
 }
 
 export function parseCommand(input: string): { name: string; args: string[] } {
