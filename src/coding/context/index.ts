@@ -88,3 +88,36 @@ export {
   orderContextItems,
 } from "./model-input-builder.js";
 export type { BuildModelInputOptions, ModelInputBuilderOptions } from "./model-input-builder.js";
+export {
+  buildContextQualityArtifacts,
+  buildContextTraceSnapshot,
+  computeContextQualityMetrics,
+  defaultContextTuningRules,
+  diffContextDebugSnapshots,
+  evaluateContextQualityFixture,
+  exportContextTrace,
+  formatContextQualityMetrics,
+  formatContextTuningReport,
+  normalizeContextEvalFixture,
+  redactContextTraceText,
+  redactContextTraceValue,
+  renderContextDebugDiff,
+  renderContextQualityTrace,
+  renderContextTrace,
+  replayContextFixture,
+  replayLoadedSessionContext,
+  snapshotFromTrace,
+} from "./quality/index.js";
+export type {
+  BuildContextQualityArtifactsResult,
+  ContextDebugDiff,
+  ContextEvalFixture,
+  ContextQualityEvaluation,
+  ContextQualityMetrics,
+  ContextQualityTrace,
+  ContextQualityTraceItem,
+  ContextTuningRule,
+  ExportContextTraceInput,
+  ReplayContextFixtureInput,
+  ReplayContextFixtureResult,
+} from "./quality/index.js";

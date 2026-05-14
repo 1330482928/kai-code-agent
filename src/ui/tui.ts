@@ -9,7 +9,7 @@ import type { LoadedSession, PromptSubmission } from "../session/types.js";
 
 import { ChatShell, createChatShellState } from "./chat-shell.js";
 import { createCommandInputState, useCommandInput } from "./use-command-input.js";
-import type { CommandResult } from "./command-registry.js";
+import type { CommandRegistry, CommandResult } from "./command-registry.js";
 import { maskSecret } from "./secrets.js";
 import {
   buildModelConfigFromSetupDraft,
@@ -71,6 +71,7 @@ export async function runInkChatPrompt(
     sessionId: string;
     loaded?: LoadedSession;
     status?: string;
+    registry?: CommandRegistry;
   },
   options: RenderStreamOptions = {},
 ): Promise<PromptSubmission> {
@@ -229,14 +230,17 @@ function ChatPromptApp({
   sessionId,
   loaded,
   status,
+  registry,
 }: {
   sessionId: string;
   loaded?: LoadedSession;
   status?: string;
+  registry?: CommandRegistry;
 }): React.ReactElement {
   const { exit } = useApp();
   const [localStatus, setLocalStatus] = useState(status);
   const input = useCommandInput({
+    registry,
     history: loaded?.messages
       .filter((message) => message.role === "user")
       .map((message) => message.parts.filter((part) => part.type === "text").map((part) => part.text ?? "").join(""))

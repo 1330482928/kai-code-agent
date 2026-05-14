@@ -1,5 +1,8 @@
 export { main, runCli } from "./cli/main.js";
 export type { CliOptions } from "./cli/main.js";
+export * from "./skills/index.js";
+export * from "./memory/index.js";
+export * from "./agents/index.js";
 export { applyHunks, applyPatchPlan, parsePatch, PatchApplyError, PatchParseError } from "./patch/index.js";
 export type {
   PatchApplyResult,
@@ -48,6 +51,7 @@ export type {
   AgentMiddleware,
   AgentRunAfterContext,
   AgentRunContext,
+  ContextItemsContext,
   MiddlewareContextBase,
   ModelAfterContext,
   ModelContext,
@@ -205,10 +209,15 @@ export {
   createDefaultCommandRegistry,
   parseCommand,
 } from "./ui/command-registry.js";
+export {
+  createSkillSlashCommands,
+  skillSlashCommandName,
+} from "./ui/slash/skills.js";
 export type {
   CommandEntry,
   CommandRegistry,
   CommandResult,
+  DefaultCommandRegistryOptions,
   LocalCommandAction,
 } from "./ui/command-registry.js";
 export {
@@ -321,6 +330,9 @@ export {
   contextItemsFromMessages,
   contextCompactTriggerTokens,
   contextUsableInputTokens,
+  buildContextQualityArtifacts,
+  buildContextTraceSnapshot,
+  exportContextTrace,
   createSummaryContextItem,
   estimateContextItemTokens,
   estimateContextItemsTokens,
@@ -329,22 +341,31 @@ export {
   estimateTokens,
   estimateToolSchemaTokens,
   formatSummaryForModel,
+  formatContextQualityMetrics,
+  formatContextTuningReport,
   generateCompactionSummary,
   isContextItemIncluded,
   isSystemContextKind,
   messageFromContextItem,
   ModelInputBuilder,
   normalizeCompactionSummary,
+  normalizeContextEvalFixture,
   normalizeContextSource,
   orderContextItems,
   planContextBudget,
   providerMessagesFromContextItems,
   redactDebugText,
+  redactContextTraceText,
+  redactContextTraceValue,
+  renderContextDebugDiff,
   renderPromptDebugText,
+  renderContextQualityTrace,
+  renderContextTrace,
   resolveContextBudget,
   safePreview,
   selectRetainedTail,
   splitContextTurnSegments,
+  snapshotFromTrace,
   stableContextItemId,
   toolCallIdsFromItem,
   truncateContextItem,
@@ -364,22 +385,32 @@ export type {
   ContextCompactionDebug,
   ContextCutReason,
   ContextDebugItem,
+  ContextDebugDiff,
   ContextItem,
   ContextItemKind,
   ContextItemSource,
   ContextManagerOptions,
   ContextTurnSegment,
+  ContextEvalFixture,
+  ContextQualityEvaluation,
+  ContextQualityMetrics,
+  ContextQualityTrace,
+  ContextQualityTraceItem,
+  ContextTuningRule,
   CreateContextItemInput,
   CreateExcludedContextItemInput,
   CreateSummaryContextItemOptions,
   CurrentUserContextInput,
   GenerateCompactionSummaryOptions,
+  ExportContextTraceInput,
   MessageContextProjectionOptions,
   ModelInputBuilderOptions,
   ModelInputBuildResult,
   PlanContextBudgetOptions,
   PromptDebugSnapshot,
   RetainedTailSelection,
+  ReplayContextFixtureInput,
+  ReplayContextFixtureResult,
 } from "./coding/context/index.js";
 export {
   buildBaseContextItems,
