@@ -26,6 +26,7 @@ import type {
   TranscriptMessage,
   TranscriptPart,
 } from "./types.js";
+import type { PermissionAuditRecord } from "../permissions/types.js";
 
 interface StatementLike {
   run(...params: unknown[]): unknown;
@@ -347,6 +348,36 @@ export class SessionTranscriptRecorder implements SessionRecorder {
         ...(input.rawResult.error ? { error: input.rawResult.error as unknown as JsonObject } : {}),
         ...(bash ? { bash: bash as unknown as JsonObject } : {}),
       },
+    });
+  }
+
+  recordPermissionAudit(input: PermissionAuditRecord): void {
+    const summary = `permission ${input.decision}: ${input.action.toolName}`;
+    const metadata: JsonObject = {
+      kind: "permission_audit",
+      decision: input.decision,
+      reason: input.reason,
+      sessionId: input.sessionId,
+      toolName: input.action.toolName,
+      actionKind: input.action.kind,
+      agentProfile: input.action.agentProfile,
+      cwd: input.action.cwd,
+      createdAt: input.createdAt,
+      ...(input.rememberScope ? { rememberScope: input.rememberScope } : {}),
+      ...(input.rememberKey ? { rememberKey: input.rememberKey } : {}),
+    };
+    const message = this.store.appendMessage({
+      sessionId: input.sessionId,
+      role: "tool",
+      summary,
+      metadata,
+    });
+    this.store.appendPart({
+      messageId: message.id,
+      type: "summary",
+      text: summary,
+      modelContent: summary,
+      metadata,
     });
   }
 

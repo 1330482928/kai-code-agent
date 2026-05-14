@@ -1,5 +1,6 @@
 import type { Message } from "../foundation/message.js";
 import type { ExecutableToolUse, JsonObject, ToolResult } from "../foundation/tool.js";
+import type { PermissionAuditRecord } from "../permissions/types.js";
 
 export type SessionMessageRole = "user" | "assistant" | "tool";
 
@@ -149,6 +150,7 @@ export interface SessionRecorder {
   recordUserMessage(input: RecordUserMessageInput): void | Promise<void>;
   recordAssistantMessage(input: RecordAssistantMessageInput): void | Promise<void>;
   recordToolResult(input: RecordToolResultInput): void | Promise<void>;
+  recordPermissionAudit?(input: PermissionAuditRecord): void | Promise<void>;
   recordCompactionSummary?(input: RecordCompactionSummaryInput): RecordCompactionSummaryResult | Promise<RecordCompactionSummaryResult>;
   completeTurn(result: { status: "success" | "aborted" | "error"; messages?: Message[]; error?: unknown }): void | Promise<void>;
 }
