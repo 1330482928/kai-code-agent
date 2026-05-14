@@ -31,6 +31,7 @@ describe("coding tools", () => {
       "glob",
       "apply_patch",
       "bash",
+      "bash_status",
       "ask_user_question",
     ]);
     expect(registry.providerSchemas().map((tool) => tool.function.name)).toEqual([
@@ -41,6 +42,7 @@ describe("coding tools", () => {
       "glob",
       "apply_patch",
       "bash",
+      "bash_status",
       "ask_user_question",
     ]);
   });

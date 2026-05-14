@@ -266,6 +266,7 @@ describe("stage-07 grep, glob, and apply_patch", () => {
       "glob",
       "apply_patch",
       "bash",
+      "bash_status",
       "ask_user_question",
       "plan_enter",
     ]);
@@ -280,6 +281,7 @@ describe("stage-07 grep, glob, and apply_patch", () => {
       "grep",
       "glob",
       "bash",
+      "bash_status",
       "ask_user_question",
       "plan_enter",
       "plan_write",

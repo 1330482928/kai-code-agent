@@ -24,6 +24,7 @@
     "@modelcontextprotocol/sdk": "^1.29.0",
     "ink": "^7.0.2",
     "react": "^19.2.6",
+    "react-devtools-core": "^7.0.1",
     "yaml": "^2.9.0",
     "zod": "^3.25.0"
   },

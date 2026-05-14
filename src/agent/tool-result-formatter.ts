@@ -27,6 +27,10 @@ export function formatToolResultForModel(toolName: string, rawResult: ToolResult
     return boundedJson(formatBash(rawResult), limitFor(toolName));
   }
 
+  if (toolName === "bash_status") {
+    return boundedJson(formatBashStatus(rawResult), limitFor(toolName));
+  }
+
   if (toolName === "write_file") {
     return boundedJson({
       ok: true,
@@ -116,6 +120,27 @@ function formatBash(rawResult: ToolResult): JsonObject {
     outputBytes: bash.outputBytes ?? 0,
     ...(typeof bash.persistedOutputPath === "string"
       ? { persistedOutputPath: bash.persistedOutputPath }
+      : {}),
+    ...(typeof bash.backgroundTaskId === "string"
+      ? { backgroundTaskId: bash.backgroundTaskId }
+      : {}),
+  };
+}
+
+function formatBashStatus(rawResult: ToolResult): JsonObject {
+  const bash = isJsonObject(rawResult.metadata?.bash) ? rawResult.metadata.bash : {};
+  return {
+    ok: true,
+    taskId: bash.taskId ?? "",
+    status: bash.status ?? "",
+    command: bash.command ?? "",
+    exitCode: bash.exitCode ?? null,
+    outputBytes: bash.outputBytes ?? 0,
+    ...(typeof bash.persistedOutputPath === "string"
+      ? { persistedOutputPath: bash.persistedOutputPath }
+      : {}),
+    ...(typeof bash.tailPreview === "string"
+      ? { tailPreview: bash.tailPreview }
       : {}),
   };
 }

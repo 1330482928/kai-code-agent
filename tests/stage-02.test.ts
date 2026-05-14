@@ -17,6 +17,7 @@ describe("stage-02", () => {
       "glob",
       "apply_patch",
       "bash",
+      "bash_status",
       "ask_user_question",
     ]);
     expect(formatToolResultForModel("write_file", {

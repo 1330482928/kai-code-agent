@@ -57,6 +57,7 @@ describe("stage-05 agent profiles and plan tools", () => {
         "glob",
         "apply_patch",
         "bash",
+        "bash_status",
         "ask_user_question",
         "plan_enter",
       ]);
@@ -70,6 +71,7 @@ describe("stage-05 agent profiles and plan tools", () => {
         "grep",
         "glob",
         "bash",
+        "bash_status",
         "ask_user_question",
         "plan_enter",
         "plan_write",

@@ -3,6 +3,7 @@ import type { HumanInteractionManager } from "../../agent/human-interaction-mana
 import { applyPatchTool } from "./apply-patch.js";
 import { createAskUserQuestionTool } from "./ask-user-question.js";
 import { bashTool } from "./bash.js";
+import { bashStatusTool } from "./bash-status.js";
 import { editFileTool } from "./edit.js";
 import { globTool } from "./glob.js";
 import { grepTool } from "./grep.js";
@@ -56,6 +57,7 @@ export function createDefaultToolRegistry(options: DefaultToolRegistryOptions = 
     globTool,
     applyPatchTool,
     bashTool,
+    bashStatusTool,
     createAskUserQuestionTool(options.humanInteractionManager),
     ...(options.externalTools ?? []),
   ]);
