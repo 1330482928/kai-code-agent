@@ -31,6 +31,8 @@ export const buildProfile: AgentProfile = {
     "glob",
     "apply_patch",
     "bash",
+    "bash_status",
+    "sub_agent",
     "ask_user_question",
     "plan_enter",
   ],
@@ -45,6 +47,7 @@ export const planProfile: AgentProfile = {
     "grep",
     "glob",
     "bash",
+    "bash_status",
     "ask_user_question",
     "plan_enter",
     "plan_write",
@@ -90,6 +93,7 @@ export interface ProfileToolRegistryOptions extends DefaultToolRegistryOptions {
   profileName: AgentProfileName;
   planRuntime?: PlanToolRuntime;
   externalTools?: ToolDef[];
+  subAgentTool?: ToolDef;
 }
 
 export function createProfileToolRegistry(options: ProfileToolRegistryOptions): ToolRegistry {
@@ -104,6 +108,9 @@ export function createProfileToolRegistry(options: ProfileToolRegistryOptions): 
   const allowed = new Set(profile.allowedTools);
   const selected = allTools.filter((tool) => allowed.has(tool.name));
   if (options.profileName === "build") {
+    if (options.subAgentTool) {
+      selected.push(options.subAgentTool);
+    }
     selected.push(...(options.externalTools ?? []));
   }
   return new ToolRegistry(selected);
