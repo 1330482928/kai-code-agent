@@ -27,6 +27,9 @@ describe("coding tools", () => {
       "read_file",
       "write_file",
       "edit_file",
+      "grep",
+      "glob",
+      "apply_patch",
       "bash",
       "ask_user_question",
     ]);
@@ -34,6 +37,9 @@ describe("coding tools", () => {
       "read_file",
       "write_file",
       "edit_file",
+      "grep",
+      "glob",
+      "apply_patch",
       "bash",
       "ask_user_question",
     ]);

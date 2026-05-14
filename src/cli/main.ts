@@ -25,6 +25,17 @@ import {
   saveModelConfig,
   type ModelConfigPathOptions,
 } from "../config/model-config.js";
+import {
+  adaptMcpTools,
+  formatMcpListServerHeader,
+  formatMcpListTool,
+  loadMcpConfig,
+  McpClientManager,
+  mcpErrorMessage,
+  redactMcpText,
+  type McpServerConfig,
+  type McpToolAdapterResult,
+} from "../mcp/index.js";
 import { createProvider } from "../provider/factory.js";
 import { FixtureProvider } from "../provider/fixture.js";
 import type { ProviderAdapter } from "../provider/types.js";
@@ -40,6 +51,7 @@ import { promptPlainApproval } from "../ui/prompts/approval.js";
 import { promptPlainQuestion } from "../ui/prompts/ask-user-question.js";
 import { promptPlainPlanApproval } from "../ui/prompts/plan-approval.js";
 import { runInkSetup } from "../ui/tui.js";
+import type { ToolDef } from "../foundation/tool.js";
 
 export interface CliOptions {
   cwd?: string;
@@ -90,6 +102,13 @@ interface PromptDebugCommandOptions {
   compactThreshold?: number;
 }
 
+interface CliMcpRuntime {
+  manager: McpClientManager;
+  servers: McpServerConfig[];
+  tools: McpToolAdapterResult[];
+  externalTools: ToolDef[];
+}
+
 export async function main(
   argv = process.argv.slice(2),
   options: CliOptions = {},
@@ -111,6 +130,11 @@ export async function runCli(
 
   if (command === "config") {
     await handleConfig(argv.slice(1), options);
+    return;
+  }
+
+  if (command === "mcp") {
+    await handleMcp(argv.slice(1), options);
     return;
   }
 
@@ -175,6 +199,53 @@ async function handleConfig(argv: string[], options: CliOptions): Promise<void> 
 
   const stdout = options.stdout ?? process.stdout;
   stdout.write(`${formatModelConfigForDisplay(loaded.config)}\n`);
+}
+
+async function handleMcp(argv: string[], options: CliOptions): Promise<void> {
+  const [subcommand] = argv;
+  if (subcommand !== "list") {
+    throw new Error("Usage: kai mcp list");
+  }
+
+  const stdout = options.stdout ?? process.stdout;
+  const loaded = await loadMcpConfig(resolveSettingsPathOptions(options));
+  for (const error of loaded.errors) {
+    stdout.write(`${error.serverName}\tERROR\t${error.message}\n`);
+  }
+  if (loaded.servers.length === 0) {
+    if (loaded.errors.length === 0) {
+      stdout.write("No MCP servers configured.\n");
+    }
+    return;
+  }
+
+  const manager = new McpClientManager({
+    servers: loaded.servers,
+    cwd: options.cwd ?? process.cwd(),
+  });
+  try {
+    for (const server of loaded.servers) {
+      stdout.write(`${formatMcpListServerHeader(server)}\n`);
+      try {
+        const tools = adaptMcpTools({
+          server,
+          tools: await manager.listTools(server.name),
+          clientManager: manager,
+        });
+        for (const tool of tools) {
+          stdout.write(`${formatMcpListTool(tool)}\n`);
+        }
+      } catch (error) {
+        stdout.write(`  ERROR\t${redactMcpText(mcpErrorMessage(error), loaded.servers)}\n`);
+      }
+    }
+  } finally {
+    try {
+      await manager.closeAll();
+    } catch (error) {
+      stdout.write(`close\tERROR\t${redactMcpText(mcpErrorMessage(error), loaded.servers)}\n`);
+    }
+  }
 }
 
 async function handleRun(command: RunCommandOptions, options: CliOptions): Promise<void> {
@@ -288,12 +359,19 @@ async function handlePromptDebug(command: PromptDebugCommandOptions, options: Cl
     ...(command.compactThreshold !== undefined ? { compactThreshold: command.compactThreshold } : {}),
   };
   const store = command.sessionId ? await openCliSessionStore(options) : undefined;
+  let mcpRuntime: CliMcpRuntime | undefined;
   try {
     const loaded = command.sessionId ? requireLoadedSession(store!, command.sessionId) : undefined;
     const loadedConfig = await loadModelConfig({ configPath: resolveConfigPath(options) });
     const model = loadedConfig.status === "ok" ? loadedConfig.profile.model : "debug-model";
     const profileName = resolveAgentProfileName({ sessionMetadata: loaded?.session.metadata });
-    const registry = createProfileToolRegistry({ profileName });
+    const humanInteractionManager = createCliHumanInteractionManager(options);
+    mcpRuntime = await createCliMcpRuntime(options, humanInteractionManager, options.stderr ?? process.stderr);
+    const registry = createProfileToolRegistry({
+      profileName,
+      humanInteractionManager,
+      externalTools: mcpRuntime?.externalTools,
+    });
     const messages = [{ role: "user" as const, content: command.task }];
     const items = await buildContextItemsForRun({
       cwd: options.cwd ?? loaded?.session.cwd ?? process.cwd(),
@@ -323,6 +401,7 @@ async function handlePromptDebug(command: PromptDebugCommandOptions, options: Cl
     }
     stdout.write(renderPromptDebugText(snapshot));
   } finally {
+    await closeCliMcpRuntime(mcpRuntime, options.stderr ?? process.stderr);
     store?.close();
   }
 }
@@ -446,6 +525,7 @@ async function runTask(
   const renderer = new PlainRenderer({ stdout, stderr });
   const humanInteractionManager = createCliHumanInteractionManager(options);
   const interrupt = createInterruptBinding();
+  let mcpRuntime: CliMcpRuntime | undefined;
   let activeProfile: AgentProfileName = resolveAgentProfileName({
     promptSubmission: runOptions.promptSubmission,
     sessionMetadata: runOptions.sessionContext?.session.metadata,
@@ -464,16 +544,18 @@ async function runTask(
       renderer.render(event);
     },
   };
-  const registryForProfile = (profileName: AgentProfileName) => createProfileToolRegistry({
-    profileName,
-    humanInteractionManager,
-    planRuntime,
-  });
   const middleware = [
     createPlanGuardMiddleware({ getProfile: () => activeProfile }),
   ];
 
   try {
+    mcpRuntime = await createCliMcpRuntime(options, humanInteractionManager, stderr, interrupt.signal);
+    const registryForProfile = (profileName: AgentProfileName) => createProfileToolRegistry({
+      profileName,
+      humanInteractionManager,
+      planRuntime,
+      externalTools: mcpRuntime?.externalTools,
+    });
     await runReactLoop({
       task,
       model,
@@ -498,6 +580,7 @@ async function runTask(
     });
     stdout.write("\n");
   } finally {
+    await closeCliMcpRuntime(mcpRuntime, stderr);
     interrupt.cleanup();
   }
 }
@@ -669,6 +752,66 @@ function parseNumberFlag(value: string, flag: string): number {
 
 function resolveConfigPath(options: CliOptions): string | undefined {
   return options.configPath ?? options.env?.KAI_CONFIG_PATH ?? process.env.KAI_CONFIG_PATH;
+}
+
+function resolveSettingsPathOptions(options: CliOptions): { cwd: string; homeDir?: string } {
+  const env = options.env ?? process.env;
+  return {
+    cwd: options.cwd ?? process.cwd(),
+    ...(env.KAI_HOME ? { homeDir: env.KAI_HOME } : env.HOME ? { homeDir: env.HOME } : {}),
+  };
+}
+
+async function createCliMcpRuntime(
+  options: CliOptions,
+  humanInteractionManager: HumanInteractionManager | undefined,
+  stderr: Writable,
+  signal?: AbortSignal,
+): Promise<CliMcpRuntime | undefined> {
+  const loaded = await loadMcpConfig(resolveSettingsPathOptions(options));
+  for (const error of loaded.errors) {
+    stderr.write(`[mcp] ${error.serverName}\tERROR\t${error.message}\n`);
+  }
+  if (loaded.servers.length === 0) {
+    return undefined;
+  }
+
+  const manager = new McpClientManager({
+    servers: loaded.servers,
+    cwd: options.cwd ?? process.cwd(),
+  });
+  const tools: McpToolAdapterResult[] = [];
+
+  for (const server of loaded.servers) {
+    try {
+      tools.push(...adaptMcpTools({
+        server,
+        tools: await manager.listTools(server.name, signal),
+        clientManager: manager,
+        humanInteractionManager,
+      }));
+    } catch (error) {
+      stderr.write(`[mcp] ${server.name}\tERROR\t${redactMcpText(mcpErrorMessage(error), loaded.servers)}\n`);
+    }
+  }
+
+  return {
+    manager,
+    servers: loaded.servers,
+    tools,
+    externalTools: tools.map((tool) => tool.tool),
+  };
+}
+
+async function closeCliMcpRuntime(runtime: CliMcpRuntime | undefined, stderr: Writable): Promise<void> {
+  if (!runtime) {
+    return;
+  }
+  try {
+    await runtime.manager.closeAll();
+  } catch (error) {
+    stderr.write(`[mcp] close\tERROR\t${redactMcpText(mcpErrorMessage(error), runtime.servers)}\n`);
+  }
 }
 
 async function openCliSessionStore(options: CliOptions): Promise<SqliteSessionStore> {

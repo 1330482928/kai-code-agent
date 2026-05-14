@@ -1,0 +1,32 @@
+{
+  "responses": [
+    {
+      "events": [
+        {
+          "type": "tool_call",
+          "toolCall": {
+            "id": "call_apply_patch_failure",
+            "name": "apply_patch",
+            "input": {
+              "patch": "*** Begin Patch\n*** Add File: ../outside-stage07.txt\n+must not be written\n*** End Patch"
+            }
+          }
+        },
+        {
+          "type": "done"
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "type": "text_delta",
+          "text": "Patch failed safely."
+        },
+        {
+          "type": "done"
+        }
+      ]
+    }
+  ]
+}

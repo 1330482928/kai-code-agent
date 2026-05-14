@@ -66,5 +66,10 @@ export function renderPlainUiEvent(event: UiEvent, streams: PlainRendererStreams
 
   if (event.type === "turn_aborted") {
     streams.stderr.write(`[aborted] ${event.reason}\n`);
+    return;
+  }
+
+  if (event.type === "turn_error") {
+    streams.stderr.write(`[error] ${event.summary}\n`);
   }
 }

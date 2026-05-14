@@ -8,6 +8,7 @@ export interface TurnRendererState {
   text: string;
   tools: ToolStateEntry[];
   abortedReason?: string;
+  errorSummary?: string;
 }
 
 export interface TurnRendererProps {
@@ -49,9 +50,16 @@ export function applyTurnEvent(state: TurnRendererState, event: UiEvent): TurnRe
       ...state,
       tools: state.tools.map((tool) => (
         tool.id === event.id
-          ? { ...tool, status: "done", ok: event.ok, resultSummary: event.summary }
+          ? { ...tool, status: event.ok ? "completed" : "failed", ok: event.ok, resultSummary: event.summary }
           : tool
       )),
+    };
+  }
+
+  if (event.type === "turn_error") {
+    return {
+      ...state,
+      errorSummary: event.summary,
     };
   }
 
@@ -70,12 +78,26 @@ export function TurnRenderer({ state }: TurnRendererProps): React.ReactNode {
     <Box flexDirection="column">
       {state.text.length > 0 ? <Text>{state.text}</Text> : null}
       {state.tools.map((tool) => (
-        <Text key={tool.id} color={tool.status === "done" && tool.ok === false ? "red" : "cyan"}>
-          {tool.status === "running" ? "running" : tool.ok === false ? "failed" : "done"} {tool.summary.title}
+        <Text key={tool.id} color={tool.ok === false ? "red" : "cyan"}>
+          {toolStatusLabel(tool)} {tool.summary.title}
           {tool.summary.detail ? `: ${tool.summary.detail}` : ""}
         </Text>
       ))}
+      {state.errorSummary ? <Text color="red">error: {state.errorSummary}</Text> : null}
       {state.abortedReason ? <Text color="yellow">aborted: {state.abortedReason}</Text> : null}
     </Box>
   );
+}
+
+function toolStatusLabel(tool: ToolStateEntry): string {
+  if (tool.status === "running") {
+    return "running";
+  }
+  if (tool.status === "backfilled") {
+    return "failed";
+  }
+  if (tool.status === "interrupted") {
+    return "interrupted";
+  }
+  return tool.ok === false ? "failed" : "done";
 }

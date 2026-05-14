@@ -1,0 +1,34 @@
+{
+  "responses": [
+    {
+      "events": [
+        {
+          "type": "tool_call",
+          "toolCall": {
+            "id": "call_grep_marker",
+            "name": "grep",
+            "input": {
+              "pattern": "STAGE07_MARKER",
+              "path": ".",
+              "fixedStrings": true
+            }
+          }
+        },
+        {
+          "type": "done"
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "type": "text_delta",
+          "text": "Searched for the Stage 07 marker."
+        },
+        {
+          "type": "done"
+        }
+      ]
+    }
+  ]
+}

@@ -13,6 +13,9 @@ describe("stage-02", () => {
       "read_file",
       "write_file",
       "edit_file",
+      "grep",
+      "glob",
+      "apply_patch",
       "bash",
       "ask_user_question",
     ]);

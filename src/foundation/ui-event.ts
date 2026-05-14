@@ -11,6 +11,7 @@ export type UiEvent =
   | { type: "question_request"; id: string; questions: QuestionPromptInput[] }
   | { type: "plan_approval_request"; id: string; planPath: string; planBody: string }
   | { type: "turn_done" }
+  | { type: "turn_error"; summary: string }
   | { type: "turn_aborted"; reason: string };
 
 export interface QuestionPromptInput {

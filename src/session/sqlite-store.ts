@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 
 import type { ExecutableToolUse, JsonObject, ToolResult } from "../foundation/tool.js";
 import { summarizeToolUse } from "../foundation/tool-summary.js";
+import { normalizeError } from "../coding/tools/errors.js";
 
 import { SESSION_SCHEMA_SQL } from "./schema.js";
 import type {
@@ -388,8 +389,37 @@ export class SessionTranscriptRecorder implements SessionRecorder {
     };
   }
 
-  completeTurn(): void {
-    return undefined;
+  completeTurn(result?: { status: "success" | "aborted" | "error"; error?: unknown }): void {
+    if (!result || result.status === "success") {
+      return undefined;
+    }
+
+    const normalized = result.status === "aborted"
+      ? { kind: "interrupted" as const, message: "Turn was aborted" }
+      : normalizeError(result.error);
+    const summary = `turn ${result.status}: ${normalized.message}`;
+    const metadata: JsonObject = {
+      kind: "turn_status",
+      status: result.status,
+      error: {
+        kind: normalized.kind,
+        message: normalized.message,
+        ...(normalized.details === undefined ? {} : { details: normalized.details }),
+      },
+    };
+    const message = this.store.appendMessage({
+      sessionId: this.sessionId,
+      role: "tool",
+      summary,
+      metadata,
+    });
+    this.store.appendPart({
+      messageId: message.id,
+      type: "summary",
+      text: summary,
+      modelContent: summary,
+      metadata,
+    });
   }
 }
 

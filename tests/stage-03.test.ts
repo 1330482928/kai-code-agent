@@ -83,11 +83,11 @@ describe("stage-03", () => {
     expect(result.assistantMessage.content).toBe("done");
     expect(calls).toEqual([
       "beforeAgentRun",
-      "beforeModel:4",
+      "beforeModel:5",
       "afterModel",
       "beforeToolUse:read_file",
       "afterToolUse:true",
-      "beforeModel:6",
+      "beforeModel:7",
       "afterModel",
       "afterAgentRun:success",
     ]);
@@ -417,7 +417,7 @@ describe("stage-03", () => {
     const state = new ToolState();
     state.start(toolUse, summary);
     state.finish("bash_1", true, "ok");
-    expect(state.list()).toMatchObject([{ id: "bash_1", status: "done", ok: true }]);
+    expect(state.list()).toMatchObject([{ id: "bash_1", status: "completed", ok: true }]);
 
     const projected = applyTurnEvent(
       applyTurnEvent(createTurnRendererState(), { type: "text_delta", delta: "hello" }),

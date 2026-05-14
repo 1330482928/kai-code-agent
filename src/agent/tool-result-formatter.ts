@@ -5,6 +5,9 @@ const TOOL_LIMITS: Record<string, number> = {
   read_file: 12000,
   write_file: 1200,
   edit_file: 1600,
+  grep: 6000,
+  glob: 6000,
+  apply_patch: 4000,
   bash: 8000,
 };
 
@@ -54,6 +57,44 @@ export function formatToolResultForModel(toolName: string, rawResult: ToolResult
       "",
     ].join("\n");
     return boundText(`${prefix}${rawResult.output}`, limitFor(toolName));
+  }
+
+  if (toolName === "grep") {
+    const grep = isJsonObject(rawResult.metadata?.grep) ? rawResult.metadata.grep : {};
+    return boundedJson({
+      ok: true,
+      pattern: grep.pattern ?? "",
+      path: grep.path ?? "",
+      matches: Array.isArray(grep.matches) ? grep.matches : [],
+      returned: grep.returned ?? 0,
+      limit: grep.limit ?? null,
+      truncated: grep.truncated ?? false,
+      summary: rawResult.output,
+    }, limitFor(toolName));
+  }
+
+  if (toolName === "glob") {
+    const glob = isJsonObject(rawResult.metadata?.glob) ? rawResult.metadata.glob : {};
+    return boundedJson({
+      ok: true,
+      pattern: glob.pattern ?? "",
+      path: glob.path ?? "",
+      files: Array.isArray(glob.files) ? glob.files : [],
+      returned: glob.returned ?? 0,
+      limit: glob.limit ?? null,
+      truncated: glob.truncated ?? false,
+      summary: rawResult.output,
+    }, limitFor(toolName));
+  }
+
+  if (toolName === "apply_patch") {
+    const patch = isJsonObject(rawResult.metadata?.patch) ? rawResult.metadata.patch : {};
+    return boundedJson({
+      ok: true,
+      counts: isJsonObject(patch.counts) ? patch.counts : {},
+      touchedFiles: Array.isArray(patch.touchedFiles) ? patch.touchedFiles : [],
+      summary: patch.summary ?? rawResult.output,
+    }, limitFor(toolName));
   }
 
   return boundedJson({

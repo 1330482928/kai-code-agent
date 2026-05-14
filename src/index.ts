@@ -1,5 +1,17 @@
 export { main, runCli } from "./cli/main.js";
 export type { CliOptions } from "./cli/main.js";
+export { applyHunks, applyPatchPlan, parsePatch, PatchApplyError, PatchParseError } from "./patch/index.js";
+export type {
+  PatchApplyResult,
+  PatchChange,
+  PatchCounts,
+  PatchHunk,
+  PatchLine,
+  PatchLineKind,
+  PatchPlan,
+  PatchTouchedFile,
+  PatchTouchedOperation,
+} from "./patch/index.js";
 export { runOnce } from "./agent/loop.js";
 export { runReactLoop } from "./agent/react-loop.js";
 export type { RunReactLoopOptions } from "./agent/react-loop.js";
@@ -44,6 +56,21 @@ export type {
 } from "./agent/middleware.js";
 export { StreamingReasoningSplitter, splitReasoningParts } from "./agent/reasoning-splitter.js";
 export type { ReasoningPart } from "./agent/reasoning-splitter.js";
+export {
+  DEFAULT_RETRY_POLICY,
+  isRetryableProviderError,
+  retryDelayMs,
+  runWithRetry,
+  sleep,
+} from "./agent/retry.js";
+export type { RetryAttempt, RetryPolicy, RunWithRetryOptions } from "./agent/retry.js";
+export {
+  parseFailureToolResult,
+  pendingToolResult,
+  providerFailureToolResult,
+  summarizeRecoveredError,
+  toolUseFromInvalidAssembly,
+} from "./agent/recovery.js";
 export { ToolAccumulator } from "./agent/tool-accumulator.js";
 export type { ToolAssemblyResult, ToolCallDeltaInput } from "./agent/tool-accumulator.js";
 export { ToolState } from "./agent/tool-state.js";
@@ -99,6 +126,45 @@ export type {
   ModelConfigPathOptions,
   ModelProfile,
 } from "./config/model-config.js";
+export {
+  loadRuntimeSettings,
+  mergeSettings,
+  runtimeSettingsPaths,
+} from "./config/settings.js";
+export type { LoadRuntimeSettingsResult, RuntimeSettingsPathOptions } from "./config/settings.js";
+export {
+  adaptMcpTools,
+  formatMcpListError,
+  formatMcpListServerHeader,
+  formatMcpListTool,
+  loadMcpConfig,
+  McpAdapterError,
+  McpClientError,
+  McpClientManager,
+  mcpApprovalPolicySchema,
+  mcpErrorMessage,
+  mcpErrorToToolResult,
+  mcpToolName,
+  normalizeMcpToolResult,
+  parseMcpConfig,
+  parseMcpToolName,
+  redactMcpServerConfig,
+  redactMcpText,
+  sanitizeMcpNameSegment,
+} from "./mcp/index.js";
+export type {
+  AdaptMcpToolsOptions,
+  LoadMcpConfigResult,
+  McpApprovalPolicy,
+  McpClientManagerOptions,
+  McpConfigError,
+  McpConfigPathOptions,
+  McpSdkClient,
+  McpServerConfig,
+  McpToolAdapterResult,
+  McpToolDefinition,
+  NormalizeMcpToolResultInput,
+} from "./mcp/index.js";
 export { FixtureProvider, fixtureProviderEventSchema } from "./provider/fixture.js";
 export { createProvider } from "./provider/factory.js";
 export {
@@ -205,6 +271,8 @@ export type {
   TranscriptPart,
 } from "./session/types.js";
 export {
+  applyPatchInputSchema,
+  applyPatchTool,
   bashInputSchema,
   bashTool,
   askUserQuestionInputSchema,
@@ -213,14 +281,28 @@ export {
   createAskUserQuestionTool,
   editFileInputSchema,
   editFileTool,
+  globInputSchema,
+  globMatcher,
+  globToRegExp,
+  globTool,
+  grepInputSchema,
+  grepTool,
   readFileInputSchema,
   readFileTool,
+  parseGrepLines,
   resolveToolPath,
+  runRipgrep,
   runTool,
   ToolRegistry,
   writeFileInputSchema,
   writeFileTool,
 } from "./coding/tools/index.js";
+export {
+  isAbortLikeError,
+  normalizeError,
+  providerErrorMessage,
+} from "./coding/tools/errors.js";
+export type { NormalizedError } from "./coding/tools/errors.js";
 export { createApprovalMiddleware } from "./coding/middleware/approval.js";
 export type { ApprovalMiddlewareOptions } from "./coding/middleware/approval.js";
 export {

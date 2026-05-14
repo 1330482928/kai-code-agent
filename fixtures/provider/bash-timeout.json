@@ -1,0 +1,34 @@
+{
+  "responses": [
+    {
+      "events": [
+        {
+          "type": "tool_call",
+          "toolCall": {
+            "id": "call_bash_timeout",
+            "name": "bash",
+            "input": {
+              "command": "printf timeout-output; sleep 1",
+              "timeout": 30,
+              "description": "timeout"
+            }
+          }
+        },
+        {
+          "type": "done"
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "type": "text_delta",
+          "text": "Handled timeout."
+        },
+        {
+          "type": "done"
+        }
+      ]
+    }
+  ]
+}

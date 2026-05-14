@@ -31,7 +31,21 @@ export const bashTool: ToolDef<typeof bashInputSchema> = {
   async execute(input, context): Promise<ToolResult> {
     const timeoutMs = input.timeout ?? DEFAULT_TIMEOUT_MS;
     if (context.signal.aborted) {
-      return createToolFailure("interrupted", "Command was interrupted before it started");
+      return {
+        ...createToolFailure("interrupted", "Command was interrupted before it started"),
+        metadata: {
+          bash: {
+            command: input.command,
+            description: input.description ?? "",
+            stdoutPreview: "",
+            stderrPreview: "",
+            exitCode: null,
+            interrupted: true,
+            interruptedReason: "abort",
+            outputBytes: 0,
+          },
+        },
+      };
     }
 
     const startedAt = Date.now();
@@ -56,10 +70,15 @@ export const bashTool: ToolDef<typeof bashInputSchema> = {
     const stdoutPreview = preview(result.stdout);
     const stderrPreview = preview(result.stderr);
     const interrupted = result.interrupted;
+    const interruptedReason = result.interruptedReason ?? (interrupted ? "timeout" : undefined);
+    const errorKind = interruptedReason === "abort" ? "interrupted" as const : "timeout" as const;
+    const errorMessage = interruptedReason === "abort"
+      ? "Command was interrupted"
+      : `Command exceeded timeout of ${timeoutMs}ms`;
 
     return {
       ok: !interrupted,
-      output: summarizeBash(input.command, result.exitCode, stdoutPreview, stderrPreview, interrupted),
+      output: summarizeBash(input.command, result.exitCode, stdoutPreview, stderrPreview, interrupted, interruptedReason),
       metadata: {
         bash: {
           command: input.command,
@@ -68,14 +87,15 @@ export const bashTool: ToolDef<typeof bashInputSchema> = {
           stderrPreview,
           exitCode: interrupted ? null : result.exitCode,
           interrupted,
+          ...(interruptedReason ? { interruptedReason } : {}),
           outputBytes,
         },
       },
       ...(interrupted
         ? {
             error: {
-              kind: "timeout" as const,
-              message: `Command exceeded timeout of ${timeoutMs}ms`,
+              kind: errorKind,
+              message: errorMessage,
             },
           }
         : {}),
@@ -89,9 +109,10 @@ function summarizeBash(
   stdoutPreview: string,
   stderrPreview: string,
   interrupted: boolean,
+  interruptedReason?: "timeout" | "abort",
 ): string {
   if (interrupted) {
-    return `Command timed out: ${command}`;
+    return interruptedReason === "abort" ? `Command interrupted: ${command}` : `Command timed out: ${command}`;
   }
   const parts = [`Command exited with code ${exitCode ?? "unknown"}: ${command}`];
   if (stdoutPreview) {

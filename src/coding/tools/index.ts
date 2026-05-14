@@ -1,6 +1,9 @@
 export { askUserQuestionInputSchema, askUserQuestionTool, createAskUserQuestionTool } from "./ask-user-question.js";
+export { applyPatchInputSchema, applyPatchTool } from "./apply-patch.js";
 export { bashTool, bashInputSchema } from "./bash.js";
 export { editFileTool, editFileInputSchema } from "./edit.js";
+export { globInputSchema, globMatcher, globToRegExp, globTool } from "./glob.js";
+export { grepInputSchema, grepTool, parseGrepLines, runRipgrep } from "./grep.js";
 export { readFileTool, readFileInputSchema } from "./read.js";
 export { ToolRegistry, createDefaultToolRegistry } from "./registry.js";
 export { runTool } from "./runner.js";

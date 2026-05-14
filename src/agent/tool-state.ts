@@ -1,7 +1,7 @@
 import type { ExecutableToolUse } from "../foundation/tool.js";
 import type { ToolUseSummary } from "../foundation/tool-summary.js";
 
-export type ToolStatus = "running" | "done";
+export type ToolStatus = "running" | "completed" | "failed" | "interrupted" | "backfilled";
 
 export interface ToolStateEntry {
   id: string;
@@ -10,6 +10,7 @@ export interface ToolStateEntry {
   status: ToolStatus;
   ok?: boolean;
   resultSummary?: string;
+  recovered?: boolean;
 }
 
 export class ToolState {
@@ -26,16 +27,17 @@ export class ToolState {
     return entry;
   }
 
-  finish(id: string, ok: boolean, resultSummary: string): ToolStateEntry | undefined {
+  finish(id: string, ok: boolean, resultSummary: string, options: { recovered?: boolean; interrupted?: boolean } = {}): ToolStateEntry | undefined {
     const entry = this.entries.get(id);
     if (!entry) {
       return undefined;
     }
     const updated: ToolStateEntry = {
       ...entry,
-      status: "done",
+      status: options.recovered ? "backfilled" : options.interrupted ? "interrupted" : ok ? "completed" : "failed",
       ok,
       resultSummary,
+      ...(options.recovered ? { recovered: true } : {}),
     };
     this.entries.set(id, updated);
     return updated;

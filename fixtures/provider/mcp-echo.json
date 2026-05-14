@@ -1,0 +1,32 @@
+{
+  "responses": [
+    {
+      "events": [
+        {
+          "type": "tool_call",
+          "toolCall": {
+            "id": "call_mcp_echo",
+            "name": "mcp__fixture__echo",
+            "input": {
+              "message": "stage09"
+            }
+          }
+        },
+        {
+          "type": "done"
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "type": "text_delta",
+          "text": "MCP echo completed."
+        },
+        {
+          "type": "done"
+        }
+      ]
+    }
+  ]
+}

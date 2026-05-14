@@ -1,0 +1,29 @@
+{
+  "responses": [
+    {
+      "events": [
+        {
+          "type": "tool_call_delta",
+          "id": "bad_args",
+          "name": "read_file",
+          "argumentsDelta": "{\"path\":",
+          "final": true
+        },
+        {
+          "type": "done"
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "type": "text_delta",
+          "text": "Malformed tool call recovered."
+        },
+        {
+          "type": "done"
+        }
+      ]
+    }
+  ]
+}

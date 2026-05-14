@@ -1,0 +1,32 @@
+{
+  "responses": [
+    {
+      "events": [
+        {
+          "type": "tool_call",
+          "toolCall": {
+            "id": "call_apply_patch",
+            "name": "apply_patch",
+            "input": {
+              "patch": "*** Begin Patch\n*** Add File: stage07-fixture.txt\n+created by apply_patch fixture\n*** End Patch"
+            }
+          }
+        },
+        {
+          "type": "done"
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "type": "text_delta",
+          "text": "Applied the Stage 07 fixture patch."
+        },
+        {
+          "type": "done"
+        }
+      ]
+    }
+  ]
+}

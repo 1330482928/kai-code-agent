@@ -14,6 +14,7 @@ export interface RuntimeShellResult {
   stderr: string;
   exitCode: number | null;
   interrupted: boolean;
+  interruptedReason?: "timeout" | "abort";
 }
 
 export interface RuntimeShellOutputChunk {
@@ -118,6 +119,9 @@ async function runBunShell(
       stderr,
       exitCode,
       interrupted: timeout.signal.aborted || options.signal.aborted,
+      ...(timeout.signal.aborted || options.signal.aborted
+        ? { interruptedReason: options.signal.aborted ? "abort" as const : "timeout" as const }
+        : {}),
     };
   } finally {
     clearTimeout(timer);
@@ -137,24 +141,39 @@ async function runNodeShell(options: {
   const child = nodeSpawn("/bin/sh", ["-lc", options.command], {
     cwd: options.cwd,
     stdio: ["ignore", "pipe", "pipe"],
-    signal: options.signal,
   });
   const chunks = {
     stdout: readNodeStream(child.stdout, (text) => options.onOutput?.({ stream: "stdout", text })),
     stderr: readNodeStream(child.stderr, (text) => options.onOutput?.({ stream: "stderr", text })),
   };
   let interrupted = false;
+  let interruptedReason: RuntimeShellResult["interruptedReason"];
+  const interrupt = (reason: "timeout" | "abort") => {
+    if (!interrupted) {
+      interrupted = true;
+      interruptedReason = reason;
+      child.kill("SIGTERM");
+    }
+  };
   const timer = setTimeout(() => {
-    interrupted = true;
-    child.kill("SIGTERM");
+    interrupt("timeout");
   }, options.timeoutMs);
+  const abortListener = () => interrupt("abort");
+  options.signal.addEventListener("abort", abortListener, { once: true });
 
   try {
     const [stdout, stderr] = await Promise.all([chunks.stdout, chunks.stderr]);
     const [exitCode] = (await once(child, "close")) as [number | null];
-    return { stdout, stderr, exitCode, interrupted: interrupted || options.signal.aborted };
+    return {
+      stdout,
+      stderr,
+      exitCode,
+      interrupted: interrupted || options.signal.aborted,
+      ...((interrupted || options.signal.aborted) ? { interruptedReason: interruptedReason ?? "abort" } : {}),
+    };
   } finally {
     clearTimeout(timer);
+    options.signal.removeEventListener("abort", abortListener);
   }
 }
 

@@ -1,8 +1,11 @@
 import type { ProviderToolSchema, ToolDef } from "../../foundation/tool.js";
 import type { HumanInteractionManager } from "../../agent/human-interaction-manager.js";
+import { applyPatchTool } from "./apply-patch.js";
 import { createAskUserQuestionTool } from "./ask-user-question.js";
 import { bashTool } from "./bash.js";
 import { editFileTool } from "./edit.js";
+import { globTool } from "./glob.js";
+import { grepTool } from "./grep.js";
 import { readFileTool } from "./read.js";
 import { writeFileTool } from "./write.js";
 
@@ -41,6 +44,7 @@ export class ToolRegistry {
 
 export interface DefaultToolRegistryOptions {
   humanInteractionManager?: HumanInteractionManager;
+  externalTools?: ToolDef[];
 }
 
 export function createDefaultToolRegistry(options: DefaultToolRegistryOptions = {}): ToolRegistry {
@@ -48,7 +52,11 @@ export function createDefaultToolRegistry(options: DefaultToolRegistryOptions = 
     readFileTool,
     writeFileTool,
     editFileTool,
+    grepTool,
+    globTool,
+    applyPatchTool,
     bashTool,
     createAskUserQuestionTool(options.humanInteractionManager),
+    ...(options.externalTools ?? []),
   ]);
 }

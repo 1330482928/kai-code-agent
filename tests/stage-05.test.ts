@@ -53,6 +53,9 @@ describe("stage-05 agent profiles and plan tools", () => {
         "read_file",
         "write_file",
         "edit_file",
+        "grep",
+        "glob",
+        "apply_patch",
         "bash",
         "ask_user_question",
         "plan_enter",
@@ -64,6 +67,8 @@ describe("stage-05 agent profiles and plan tools", () => {
       });
       expect(planRegistry.providerSchemas().map((schema) => schema.function.name)).toEqual([
         "read_file",
+        "grep",
+        "glob",
         "bash",
         "ask_user_question",
         "plan_enter",
@@ -170,11 +175,23 @@ describe("stage-05 agent profiles and plan tools", () => {
     })).toBeUndefined();
     expect(await guard.beforeToolUse?.({
       ...base,
+      toolUse: { id: "grep_1", name: "grep", input: { pattern: "stage-05", path: "src" } },
+    })).toBeUndefined();
+    expect(await guard.beforeToolUse?.({
+      ...base,
+      toolUse: { id: "glob_1", name: "glob", input: { pattern: "**/*.ts" } },
+    })).toBeUndefined();
+    expect(await guard.beforeToolUse?.({
+      ...base,
       toolUse: { id: "bash_1", name: "bash", input: { command: "pwd" } },
     })).toBeUndefined();
     expect(await guard.beforeToolUse?.({
       ...base,
       toolUse: { id: "write_1", name: "write_file", input: { path: "x", content: "x" } },
+    })).toMatchObject({ ok: false, error: { kind: "permission" } });
+    expect(await guard.beforeToolUse?.({
+      ...base,
+      toolUse: { id: "patch_1", name: "apply_patch", input: { patch: "*** Begin Patch\n*** End Patch" } },
     })).toMatchObject({ ok: false, error: { kind: "permission" } });
     expect(await guard.beforeToolUse?.({
       ...base,

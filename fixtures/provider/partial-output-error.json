@@ -1,0 +1,17 @@
+{
+  "responses": [
+    {
+      "events": [
+        {
+          "type": "text_delta",
+          "text": "partial"
+        },
+        {
+          "type": "error",
+          "message": "provider failed after output",
+          "status": 500
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "responses": [
+    {
+      "events": [
+        {
+          "type": "tool_call",
+          "toolCall": {
+            "id": "call_glob_ts",
+            "name": "glob",
+            "input": {
+              "pattern": "**/*.ts",
+              "path": ".",
+              "limit": 20
+            }
+          }
+        },
+        {
+          "type": "done"
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "type": "text_delta",
+          "text": "Listed TypeScript files through the glob tool."
+        },
+        {
+          "type": "done"
+        }
+      ]
+    }
+  ]
+}

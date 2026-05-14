@@ -1,0 +1,33 @@
+{
+  "responses": [
+    {
+      "events": [
+        {
+          "type": "tool_call",
+          "toolCall": {
+            "id": "call_bash_nonzero",
+            "name": "bash",
+            "input": {
+              "command": "printf nonzero; exit 7",
+              "description": "nonzero"
+            }
+          }
+        },
+        {
+          "type": "done"
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "type": "text_delta",
+          "text": "Handled non-zero exit."
+        },
+        {
+          "type": "done"
+        }
+      ]
+    }
+  ]
+}

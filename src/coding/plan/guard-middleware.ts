@@ -6,6 +6,8 @@ import { isReadonlyBashCommand } from "./readonly-bash.js";
 
 const PLAN_ALLOWED_TOOLS = new Set([
   "read_file",
+  "grep",
+  "glob",
   "bash",
   "ask_user_question",
   "plan_enter",

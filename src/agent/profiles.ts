@@ -27,6 +27,9 @@ export const buildProfile: AgentProfile = {
     "read_file",
     "write_file",
     "edit_file",
+    "grep",
+    "glob",
+    "apply_patch",
     "bash",
     "ask_user_question",
     "plan_enter",
@@ -39,6 +42,8 @@ export const planProfile: AgentProfile = {
   promptId: "kai.plan.v1",
   allowedTools: [
     "read_file",
+    "grep",
+    "glob",
     "bash",
     "ask_user_question",
     "plan_enter",
@@ -84,16 +89,23 @@ export function resolveAgentProfileName(input: ResolveAgentProfileInput = {}): A
 export interface ProfileToolRegistryOptions extends DefaultToolRegistryOptions {
   profileName: AgentProfileName;
   planRuntime?: PlanToolRuntime;
+  externalTools?: ToolDef[];
 }
 
 export function createProfileToolRegistry(options: ProfileToolRegistryOptions): ToolRegistry {
-  const allTools = createDefaultToolRegistry(options).list();
+  const allTools = createDefaultToolRegistry({
+    ...options,
+    externalTools: [],
+  }).list();
   if (options.planRuntime) {
     allTools.push(...createPlanTools(options.planRuntime));
   }
   const profile = getAgentProfile(options.profileName);
   const allowed = new Set(profile.allowedTools);
   const selected = allTools.filter((tool) => allowed.has(tool.name));
+  if (options.profileName === "build") {
+    selected.push(...(options.externalTools ?? []));
+  }
   return new ToolRegistry(selected);
 }
 

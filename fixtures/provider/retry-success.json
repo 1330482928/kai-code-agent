@@ -1,0 +1,24 @@
+{
+  "responses": [
+    {
+      "events": [
+        {
+          "type": "error",
+          "message": "temporary provider failure",
+          "status": 500
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "type": "text_delta",
+          "text": "Retry succeeded."
+        },
+        {
+          "type": "done"
+        }
+      ]
+    }
+  ]
+}

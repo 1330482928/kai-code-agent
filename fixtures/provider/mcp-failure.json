@@ -1,0 +1,30 @@
+{
+  "responses": [
+    {
+      "events": [
+        {
+          "type": "tool_call",
+          "toolCall": {
+            "id": "call_mcp_fail",
+            "name": "mcp__fixture__fail",
+            "input": {}
+          }
+        },
+        {
+          "type": "done"
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "type": "text_delta",
+          "text": "MCP failure was returned as a tool result."
+        },
+        {
+          "type": "done"
+        }
+      ]
+    }
+  ]
+}

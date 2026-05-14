@@ -27,6 +27,18 @@ export function summarizeToolUse(toolUse: ExecutableToolUse): ToolUseSummary {
     return { title: "Edit file", detail: stringValue(toolUse.input.path) };
   }
 
+  if (toolUse.name === "grep") {
+    return { title: "Grep", detail: stringValue(toolUse.input.pattern) };
+  }
+
+  if (toolUse.name === "glob") {
+    return { title: "Glob", detail: stringValue(toolUse.input.pattern) };
+  }
+
+  if (toolUse.name === "apply_patch") {
+    return { title: "Apply patch", detail: patchPreview(stringValue(toolUse.input.patch)) };
+  }
+
   if (toolUse.name === "ask_user_question") {
     const questions = Array.isArray(toolUse.input.questions) ? toolUse.input.questions : [];
     const first = questions[0];
@@ -37,6 +49,16 @@ export function summarizeToolUse(toolUse: ExecutableToolUse): ToolUseSummary {
       title: "Ask question",
       detail: questions.length > 1 ? `${questions.length} questions: ${firstQuestion}` : firstQuestion,
     };
+  }
+
+  if (toolUse.name.startsWith("mcp__")) {
+    const parsed = parseMcpToolName(toolUse.name);
+    if (parsed) {
+      return {
+        title: `MCP ${parsed.serverName}/${parsed.toolName}`,
+        detail: bounded(JSON.stringify(toolUse.input), 180),
+      };
+    }
   }
 
   return {
@@ -51,4 +73,25 @@ function stringValue(value: JsonValue | undefined): string {
 
 function bounded(value: string, max: number): string {
   return value.length <= max ? value : `${value.slice(0, max - 3)}...`;
+}
+
+function patchPreview(value: string): string {
+  const touched = value.split("\n")
+    .filter((line) => line.startsWith("*** Add File: ")
+      || line.startsWith("*** Update File: ")
+      || line.startsWith("*** Delete File: "))
+    .map((line) => line.replace(/^\*\*\* (Add|Update|Delete) File: /, ""))
+    .join(", ");
+  return bounded(touched || value.replace(/\s+/g, " ").trim(), 180);
+}
+
+function parseMcpToolName(toolName: string): { serverName: string; toolName: string } | null {
+  const match = /^mcp__([^_].*?)__(.+)$/.exec(toolName);
+  if (!match) {
+    return null;
+  }
+  return {
+    serverName: match[1] ?? "",
+    toolName: match[2] ?? "",
+  };
 }

@@ -2,7 +2,6 @@ import { randomUUID } from "node:crypto";
 
 import type { Message, RunResult } from "../foundation/message.js";
 import {
-  createToolFailure,
   type ExecutableToolUse,
   type ToolResult,
 } from "../foundation/tool.js";
@@ -26,6 +25,13 @@ import { ToolState } from "./tool-state.js";
 import { formatToolResultForModel } from "./tool-result-formatter.js";
 import type { LoadedSession, PromptSubmission, SessionRecorder } from "../session/types.js";
 import type { AgentProfileName } from "./profiles.js";
+import { isRetryableProviderError, runWithRetry, type RetryPolicy } from "./retry.js";
+import {
+  parseFailureToolResult,
+  providerFailureToolResult,
+  summarizeRecoveredError,
+  toolUseFromInvalidAssembly,
+} from "./recovery.js";
 
 const MAX_REACT_ITERATIONS = 20;
 
@@ -53,6 +59,8 @@ export interface RunReactLoopOptions {
   onEvent?: (event: ProviderEvent) => void | Promise<void>;
   onUiEvent?: (event: UiEvent) => void | Promise<void>;
   onToolResult?: (toolUse: ExecutableToolUse, rawResult: ToolResult, modelContent: string) => void | Promise<void>;
+  retryPolicy?: RetryPolicy;
+  retrySleep?: (ms: number, signal?: AbortSignal) => Promise<void>;
 }
 
 export interface ReactLoopContextOptions extends ContextAssemblyOptions {
@@ -111,6 +119,8 @@ export async function runReactLoop(options: RunReactLoopOptions): Promise<RunRes
       const parseFailures = new Map<string, ToolResult>();
       const accumulator = new ToolAccumulator();
       let sawDone = false;
+      let currentAttemptHadIrreversibleOutput = false;
+      let providerFailure: unknown;
 
   const contextBuild = await buildProviderInputForIteration(options, {
     cwd,
@@ -132,42 +142,73 @@ export async function runReactLoop(options: RunReactLoopOptions): Promise<RunRes
         contextBuild,
       });
 
-      for await (const event of options.provider.stream(providerInput, signal)) {
-        throwIfAborted(signal);
-        if (event.type === "text_delta") {
-          assistantText += event.text;
-          await emitUi(options, { type: "text_delta", delta: event.text });
-        } else if (event.type === "thinking_delta") {
-          assistantThinking.push(event.text);
-          await emitUi(options, { type: "thinking_delta", delta: event.text, hidden: true });
-        } else if (event.type === "usage") {
-          usage = {
-            inputTokens: event.inputTokens,
-            outputTokens: event.outputTokens,
-          };
-        } else if (event.type === "tool_call") {
-          toolCalls.push(event.toolCall);
-        } else if (event.type === "tool_call_delta") {
-          collectToolAssembly(accumulator.append({
-            id: event.id,
-            name: event.name,
-            argumentsDelta: event.argumentsDelta,
-            final: event.final,
-          }), toolCalls, parseFailures);
-        }
+      try {
+        await runWithRetry(async () => {
+          currentAttemptHadIrreversibleOutput = false;
+          for await (const event of options.provider.stream(providerInput, signal)) {
+            throwIfAborted(signal);
+            if (isIrreversibleProviderEvent(event)) {
+              currentAttemptHadIrreversibleOutput = true;
+            }
+            if (event.type === "text_delta") {
+              assistantText += event.text;
+              await emitUi(options, { type: "text_delta", delta: event.text });
+            } else if (event.type === "thinking_delta") {
+              assistantThinking.push(event.text);
+              await emitUi(options, { type: "thinking_delta", delta: event.text, hidden: true });
+            } else if (event.type === "usage") {
+              usage = {
+                inputTokens: event.inputTokens,
+                outputTokens: event.outputTokens,
+              };
+            } else if (event.type === "tool_call") {
+              toolCalls.push(event.toolCall);
+            } else if (event.type === "tool_call_delta") {
+              collectToolAssembly(accumulator.append({
+                id: event.id,
+                name: event.name,
+                argumentsDelta: event.argumentsDelta,
+                final: event.final,
+              }), toolCalls, parseFailures);
+            }
 
-        await options.onEvent?.(event);
-        if (event.type === "done") {
-          sawDone = true;
-          for (const result of accumulator.finalizePending()) {
-            collectToolAssembly(result, toolCalls, parseFailures);
+            await options.onEvent?.(event);
+            if (event.type === "done") {
+              sawDone = true;
+              for (const result of accumulator.finalizePending()) {
+                collectToolAssembly(result, toolCalls, parseFailures);
+              }
+              break;
+            }
           }
-          break;
-        }
-      }
-      if (!sawDone) {
+          if (!sawDone) {
+            for (const result of accumulator.finalizePending()) {
+              collectToolAssembly(result, toolCalls, parseFailures);
+            }
+          }
+        }, {
+          policy: options.retryPolicy,
+          signal,
+          sleep: options.retrySleep,
+          shouldRetry(error) {
+            return !currentAttemptHadIrreversibleOutput && isRetryableProviderError(error);
+          },
+        });
+      } catch (error) {
+        providerFailure = error;
         for (const result of accumulator.finalizePending()) {
           collectToolAssembly(result, toolCalls, parseFailures);
+        }
+      }
+
+      if (providerFailure) {
+        if (toolCalls.length === 0) {
+          throw providerFailure;
+        }
+        for (const toolUse of toolCalls) {
+          if (!parseFailures.has(toolUse.id)) {
+            parseFailures.set(toolUse.id, providerFailureToolResult(toolUse, providerFailure));
+          }
         }
       }
 
@@ -254,7 +295,11 @@ export async function runReactLoop(options: RunReactLoopOptions): Promise<RunRes
         const modelContent = formatToolResultForModel(toolUse.name, rawResult);
         const toolEndedAt = new Date().toISOString();
         const resultSummary = summarizeToolResult(rawResult);
-        toolState.finish(toolUse.id, rawResult.ok, resultSummary);
+        const recovered = parseFailures.has(toolUse.id);
+        toolState.finish(toolUse.id, rawResult.ok, resultSummary, {
+          recovered,
+          interrupted: rawResult.error?.kind === "interrupted",
+        });
         await emitUi(options, { type: "tool_result", id: toolUse.id, ok: rawResult.ok, summary: resultSummary });
         await options.onToolResult?.(toolUse, rawResult, modelContent);
         await options.sessionRecorder?.recordToolResult({
@@ -302,6 +347,7 @@ export async function runReactLoop(options: RunReactLoopOptions): Promise<RunRes
       status: "error",
       error,
     });
+    await emitUi(options, { type: "turn_error", summary: summarizeRecoveredError(error) });
     await options.sessionRecorder?.completeTurn({ status: "error", error });
     throw error;
   }
@@ -321,15 +367,17 @@ function collectToolAssembly(
     return;
   }
 
-  const toolUse: ExecutableToolUse = {
-    id: result.id,
-    name: result.name,
-    input: {},
-  };
+  const toolUse = toolUseFromInvalidAssembly(result);
   toolCalls.push(toolUse);
-  parseFailures.set(result.id, createToolFailure("parse_error", `Malformed tool arguments for '${result.name}': ${result.reason}`, {
-    rawArguments: result.rawArguments,
-  }));
+  parseFailures.set(result.id, parseFailureToolResult(result));
+}
+
+function isIrreversibleProviderEvent(event: ProviderEvent): boolean {
+  return event.type === "text_delta"
+    || event.type === "thinking_delta"
+    || event.type === "usage"
+    || event.type === "tool_call"
+    || event.type === "tool_call_delta";
 }
 
 async function emitUi(options: RunReactLoopOptions, event: UiEvent): Promise<void> {

@@ -1,0 +1,34 @@
+{
+  "responses": [
+    {
+      "events": [
+        {
+          "type": "tool_call",
+          "toolCall": {
+            "id": "call_read_after_error",
+            "name": "read_file",
+            "input": {
+              "path": "missing-after-provider-error.txt"
+            }
+          }
+        },
+        {
+          "type": "error",
+          "message": "provider failed after tool intent",
+          "status": 500
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "type": "text_delta",
+          "text": "Recovered provider tool intent."
+        },
+        {
+          "type": "done"
+        }
+      ]
+    }
+  ]
+}
